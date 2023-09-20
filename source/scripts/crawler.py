@@ -1,24 +1,16 @@
 import os
 import uuid
 
-# path to destination folder containing python scripts
-DEST = "/home/peter/Documents/DataSet/resources/scripts"
+import utils
+
+# path to home directory
+HOME = os.path.expanduser('~')
 # path to source folder containing repositories
-SOURCE = "/home/peter/Documents/DataSet/resources/repos"
+SOURCE = f"{HOME}/Documents/DataSet/resources/repos"
+# path to destination folder containing python scripts
+DEST = f"{HOME}/Documents/DataSet/resources/scripts"
 
-def get_python_scripts(path: str) -> list[dict]:
-    result = []
-    for root, _, files in os.walk(path):
-        for file in files:
-            if file.split('.')[-1] != "py": continue
-            result.append({
-                "root": root,
-                "file": file,
-                "path": f"{root}/{file}"
-            })
-    return result
-
-scripts = get_python_scripts(SOURCE)
+scripts = utils.get_python_scripts_at(SOURCE)
 
 for script in scripts:
     os.popen(f"cp {script['path']} {DEST}/{uuid.uuid4()}.py")

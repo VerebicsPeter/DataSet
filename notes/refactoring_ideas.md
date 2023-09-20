@@ -16,6 +16,10 @@
  - Python fixers like `2to3`, `modernize`, `futurize` or `fissix`
  - `PyUpgrade`
  - Code formatters like `autopep8` or `black`
+ - Python IDE `PyCharm` (it supports auto refactoring)
 
 ## Storing data
- - `MongodDb` for storing different refactorings to a given source file and converting to csv files
+ - `MongodDb` for storing different refactorings to a given source file and converting to `.csv` files
+
+## Note
+ - fixers like `2to3` etc. may be useless for this project

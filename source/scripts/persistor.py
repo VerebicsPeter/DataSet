@@ -1,34 +1,51 @@
 import os
+# pprint for logging
 import pprint
 # pymongo for persisting data
 from pymongo import MongoClient
+
+import utils
+
+# Refactorings implemented:
+# - autopep8 and isort (formatter and import sorter)
+# - modernize (2to3 wrapper)
+
+class Refactoring:
+
+    def __init__(self, id, source: str, refactorings: list[dict[str,str]] = []):
+        self.id = id
+        self.source = source
+        self.refactorings = refactorings
+    
+    def add_refactoring(self, refactoring: dict[str, str]):
+        if "method" not in refactoring or "result" not in refactoring: return
+        self.refactorings.append(refactoring)
+
+    def save(self, collection):
+        # return if there's nothing to save
+        if len(self.refactorings) == 0: return
+
+        try:
+            refactoring = {"_id": self.id, "source": self.source}
+
+            for r in self.refactorings:
+                refactoring[r['method']] = r['result']
+            
+            collection.insert_one(refacoring)
+        except:
+            print("Something went wrong when saving the refactoring.")
 
 # create client
 client = MongoClient()
 # select database
 db = client['refactoring']
 # collection from database
-collection = db.scripts
+scripts_collection = db.scripts
 
-print(f"Collections: {db.list_collection_names()}")
+HOME = os.path.expanduser('~')
+PATH = f"{HOME}/Documents/DataSet/resources/scripts"
 
-PATH = "/home/peter/Documents/DataSet/resources/scripts"
-
-def get_python_scripts_at(path: str) -> list[dict]:
-    result = []
-    for root, _, files in os.walk(path):
-        for file in files:
-            if file.split('.')[-1] != "py": continue
-            result.append({
-                "root": root,
-                "file": file,
-                "path": f"{root}/{file}"
-            })
-    return result
-
-scripts = get_python_scripts_at(PATH)
-
-for script in scripts: print(script['path'])
+scripts = utils.get_python_scripts_at(PATH)
 
 for script in scripts:
     # skip the refactored scripts
@@ -37,22 +54,31 @@ for script in scripts:
     root = script['root']
     path = script['path']
     file = script['file']
-
-    script_o = '' # original script string
-    script_m = '' # modernized script string
-
-    with open(path) as f: script_o = f.read()
-        
-    fn_o = file.split('.')[0] # original script name
-    fn_m = f"{fn_o}.modernize.py" # modernized script name
-
-    if any(s['file'] == fn_m for s in scripts):
-        with open(f"{root}/{fn_m}") as f: script_m = f.read()
     
-    if len(script_m):
-        refacoring = {
-            "_id": fn_o,
-            "source": script_o,
-            "modernize": script_m,
-        }
-        collection.insert_one(refacoring)
+    # original script name (uuid)
+    script_fn = file.split('.')[0]
+    # original script string
+    script_string = ''
+
+    with open(path) as f: script_string = f.read()
+    
+    refacoring = Refactoring(script_fn, script_string)
+    
+    script_fn_a = f"{script_fn}.autopep_isort.py" # autopep and isort modified script name
+    script_fn_m = f"{script_fn}.modernize.py"     # modernized script name
+
+    if any(s['file'] == script_fn_m for s in scripts):
+        with open(f"{root}/{script_fn_m}") as f: 
+            content = f.read()
+            if len(content): refacoring.add_refactoring({
+                "method": "modernize", "result": content
+            })
+
+    if any(s['file'] == script_fn_a for s in scripts):
+        with open(f"{root}/{script_fn_a}") as f: 
+            content = f.read()
+            if len(content): refacoring.add_refactoring({
+                "method": "autopep_isort", "result": content
+            })
+                
+    refacoring.save(scripts_collection)
