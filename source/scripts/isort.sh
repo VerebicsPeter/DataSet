@@ -22,17 +22,17 @@ do
     fi
 
     # Create copy of the script
-    cp "$script" "$resource_dir/$base_name.modernize.py"
+    cp "$script" "$resource_dir/$base_name.isort.py"
 
-    # Run modernize on the copy of the script
-    modernize --no-six --nobackups -w "$resource_dir/$base_name.modernize.py"
+    # Run isort on the copy of the script
+    isort $resource_dir/$base_name.isort.py
 
     # Check if there were any changes made to the copy
-    if cmp -s "$script" "$resource_dir/$base_name.modernize.py";
+    if cmp -s "$script" "$resource_dir/$base_name.isort.py";
     then
         echo -e ">> No changes needed for $script\n"
         # Remove the copy if no changes were made
-        rm "$resource_dir/$base_name.modernize.py"
+        rm "$resource_dir/$base_name.isort.py"
     else
         echo -e ">> Changes applied to $script\n"
     fi

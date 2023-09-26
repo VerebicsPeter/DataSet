@@ -7,33 +7,46 @@ from pymongo import MongoClient
 import utils
 
 # Refactorings implemented:
-# - autopep8 and isort (formatter and import sorter)
+# - isort (import sorter)
 # - modernize (2to3 wrapper)
 
 class Refactoring:
 
-    def __init__(self, id, source: str, refactorings: list[dict[str,str]] = []):
+    def __init__(self, id, source: str):
         self.id = id
         self.source = source
-        self.refactorings = refactorings
+        self.refactorings = []
     
-    def add_refactoring(self, refactoring: dict[str, str]):
+    def add_refactoring(self, refactoring: dict[str, str]) -> None:
         if "method" not in refactoring or "result" not in refactoring: return
         self.refactorings.append(refactoring)
 
-    def save(self, collection):
+    def save(self, collection) -> None:
         # return if there's nothing to save
         if len(self.refactorings) == 0: return
-
+        # else try to save the refactoring
         try:
-            refactoring = {"_id": self.id, "source": self.source}
-
+            refactoring_dict = {"_id": self.id, "source": self.source}
             for r in self.refactorings:
-                refactoring[r['method']] = r['result']
+                refactoring_dict[r['method']] = r['result']
             
-            collection.insert_one(refacoring)
-        except:
-            print("Something went wrong when saving the refactoring.")
+            collection.insert_one(refactoring_dict)
+        except Exception as err:
+            print("Something went wrong while saving the refactoring!\n", err)
+
+def add_refactoring_with_method(
+    instance, method: str, script_id: str, scripts: list[str]) -> None:
+    script_fn = f"{script_id}.{method}.py"
+    
+    if all(s['file'] != script_fn for s in scripts):
+        print(f'{script_fn} not found!')
+        return
+
+    with open(f"{root}/{script_fn}") as f:
+        content = f.read()
+        if len(content): instance.add_refactoring({
+            "method": method, "result": content
+        })
 
 # create client
 client = MongoClient()
@@ -54,31 +67,24 @@ for script in scripts:
     root = script['root']
     path = script['path']
     file = script['file']
-    
+
     # original script name (uuid)
-    script_fn = file.split('.')[0]
+    script_id = file.split('.')[0]
     # original script string
-    script_string = ''
+    script_source = ''
 
-    with open(path) as f: script_string = f.read()
+    with open(path) as f: script_source = f.read()
+    # continue if reading failed or file is empty
+    if not len(script_source): continue
+
+    refacoring = Refactoring(script_id, script_source)
+
+    add_refactoring_with_method(refacoring,'modernize', 
+        script_id, scripts)
+    add_refactoring_with_method(refacoring,'isort', 
+        script_id, scripts)
     
-    refacoring = Refactoring(script_fn, script_string)
-    
-    script_fn_a = f"{script_fn}.autopep_isort.py" # autopep and isort modified script name
-    script_fn_m = f"{script_fn}.modernize.py"     # modernized script name
+    #print('>>> ID'  , refacoring.id)
+    #print('>>> REFS', len(refacoring.refactorings))
 
-    if any(s['file'] == script_fn_m for s in scripts):
-        with open(f"{root}/{script_fn_m}") as f: 
-            content = f.read()
-            if len(content): refacoring.add_refactoring({
-                "method": "modernize", "result": content
-            })
-
-    if any(s['file'] == script_fn_a for s in scripts):
-        with open(f"{root}/{script_fn_a}") as f: 
-            content = f.read()
-            if len(content): refacoring.add_refactoring({
-                "method": "autopep_isort", "result": content
-            })
-                
     refacoring.save(scripts_collection)

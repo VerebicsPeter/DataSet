@@ -2,3 +2,4 @@
 /.vscode
 /resources
 /source/scripts/*.log
+/source/scripts/__pycache__

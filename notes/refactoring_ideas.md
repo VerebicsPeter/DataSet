@@ -10,6 +10,7 @@
  - promoting local variable to funtion parameters
  - extracting superclass/interface from existing classes
  - sorting imports
+ - swapping lines if it produces equivalent code
 
 ## Refactoring tools to try:
  - IDE's built in tools, `RedBaron`, `Bowler`, `Rope`, maybe `Coala`
@@ -21,5 +22,5 @@
 ## Storing data
  - `MongodDb` for storing different refactorings to a given source file and converting to `.csv` files
 
-## Note
- - fixers like `2to3` etc. may be useless for this project
+## Inequivalent code
+ - data for inequivalent code pairs should also be provided
