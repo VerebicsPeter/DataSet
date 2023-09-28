@@ -33,20 +33,22 @@ class Refactoring:
             collection.insert_one(refactoring_dict)
         except Exception as err:
             print("Something went wrong while saving the refactoring!\n", err)
-
-def add_refactoring_with_method(
-    instance, method: str, script_id: str, scripts: list[str]) -> None:
-    script_fn = f"{script_id}.{method}.py"
     
-    if all(s['file'] != script_fn for s in scripts):
-        print(f'{script_fn} not found!')
-        return
+    @staticmethod
+    def add_refactoring_with_method(
+        instance, method: str, script_id: str, scripts: list[str]) -> None:
+        
+        script_fn = f"{script_id}.{method}.py"
+    
+        if all(s['file'] != script_fn for s in scripts):
+            print(f'{script_fn} not found!')
+            return
 
-    with open(f"{root}/{script_fn}") as f:
-        content = f.read()
-        if len(content): instance.add_refactoring({
-            "method": method, "result": content
-        })
+        with open(f"{root}/{script_fn}") as f:
+            content = f.read()
+            if len(content): instance.add_refactoring({
+                "method": method, "result": content
+            })
 
 # create client
 client = MongoClient()
@@ -77,14 +79,14 @@ for script in scripts:
     # continue if reading failed or file is empty
     if not len(script_source): continue
 
-    refacoring = Refactoring(script_id, script_source)
+    refactoring = Refactoring(script_id, script_source)
 
-    add_refactoring_with_method(refacoring,'modernize', 
-        script_id, scripts)
-    add_refactoring_with_method(refacoring,'isort', 
-        script_id, scripts)
+    Refactoring.add_refactoring_with_method(
+        refactoring,'modernize', script_id, scripts)
+    Refactoring.add_refactoring_with_method(
+        refactoring,'isort',     script_id, scripts)
     
-    #print('>>> ID'  , refacoring.id)
-    #print('>>> REFS', len(refacoring.refactorings))
+    print('>>> refactoring ID:'  , refactoring.id)
+    print('>>> refactorings  :', len(refactoring.refactorings))
 
-    refacoring.save(scripts_collection)
+    #refacoring.save(scripts_collection)
