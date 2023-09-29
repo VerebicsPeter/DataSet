@@ -82,11 +82,13 @@ for script in scripts:
     refactoring = Refactoring(script_id, script_source)
 
     Refactoring.add_refactoring_with_method(
-        refactoring,'modernize', script_id, scripts)
-    Refactoring.add_refactoring_with_method(
         refactoring,'isort',     script_id, scripts)
+    Refactoring.add_refactoring_with_method(
+        refactoring,'autopep',   script_id, scripts)
+    Refactoring.add_refactoring_with_method(
+        refactoring,'modernize', script_id, scripts)
     
     print('>>> refactoring ID:'  , refactoring.id)
     print('>>> refactorings  :', len(refactoring.refactorings))
 
-    #refacoring.save(scripts_collection)
+    refactoring.save(scripts_collection)
