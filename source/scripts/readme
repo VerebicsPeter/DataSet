@@ -1,1 +1,3 @@
-Run the modernize refactoring for the scripts in resources: ./modernize.sh > modernize.log
+Run crawler.py to copy all py scripts from resources/repos to resources/scripts.
+Run the isort, autopep or modernize script to refactor the scripts in resources/scripts.
+Run persistor.py to save all scripts to database.
