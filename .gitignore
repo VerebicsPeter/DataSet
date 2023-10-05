@@ -1,5 +1,5 @@
 /.venv
 /.vscode
 /resources
-/source/refactorings/*.log
 /source/scripts/__pycache__
+*.log
