@@ -8,6 +8,7 @@ import utils
 
 # Refactorings implemented:
 # - isort (import sorter)
+# - autopep (formatter)
 # - modernize (2to3 wrapper)
 
 class Refactoring:
