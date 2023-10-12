@@ -11,7 +11,7 @@ my_empty_list = []
 """
 
 red = rb.RedBaron(source)
-#print(red.help(deep=True))
+print(red.help(deep=True))
 #print("root node's parent:", red.parent) # None
 #ifelseblock = red.find('IfelseblockNode')
 #print(ifelseblock.help(deep=True))
@@ -19,8 +19,8 @@ red = rb.RedBaron(source)
 assignment = red.find('AssignmentNode')
 #print(assignment)
 list_node = assignment.find('ListNode')
-print('listnode value and type:',list_node.value,type(list_node.value))
-print(list_node.value.help(deep=True))
+#print('listnode value and type:',list_node.value,type(list_node.value))
+#print(list_node.value.help(deep=True))
 
 #print(assignment.value.help(deep=True))
 #print('Value of the list:', assignment.value.list)
