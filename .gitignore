@@ -2,4 +2,5 @@
 /.vscode
 /resources
 /source/scripts/__pycache__
+/source/common_pattern_transformations/__pycache__
 *.log
