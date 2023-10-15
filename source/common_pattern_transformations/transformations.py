@@ -2,61 +2,32 @@
 
 import redbaron as rb
 
-from utils import child_count, child_count_rec, get_last_node_before, node_mentions, node_is_assignment_to
+from utils import match_node, node_mentions, node_is_assignment_to, node_is_empty_list, get_last_node_before
+from patterns import for_to_listc, for_to_listc_if
 
-# guard for transformation
+# for to if list comprehension match
 def _t_for_to_listcomprehension_match(for_node) -> bool:
-    if child_count(for_node) != 1: return False
-    if child_count_rec(for_node,'IfelseblockNode') != 1:
-        return False
-    if (child_count_rec(for_node.value.find('IfelseblockNode'),'ElifNode') or
-        child_count_rec(for_node.value.find('IfelseblockNode'),'ElseNode')):
-        return False
-    if (child_count_rec(
-        for_node.
-        value.find('IfelseblockNode').
-        value.find('IfNode'),
-        'AtomtrailersNode') != 1
-    ):
-        return False
-    if (child_count_rec(
-        for_node.
-        value.find('IfelseblockNode').
-        value.find('IfNode').
-        value.find('AtomtrailersNode'),
-        'name') < 3
-    ):
-        return False
-    if (child_count_rec(
-        for_node.
-        value.find('IfelseblockNode').
-        value.find('IfNode').
-        value.find('AtomtrailersNode'),
-        'callnode') != 1
-    ):
-        return False
-    return True
+    return match_node(for_node, for_to_listc_if)
 
-# for transformation
+# for to if list comprehension change
 def _t_for_to_listcomprehension_change(for_node) -> tuple | None:
     if not _t_for_to_listcomprehension_match(for_node):
         return None
     if_node = for_node.value.find('ifelseblock').value.find('if')
     atomtrailers = if_node.value.find('atomtrailers')
-    # namenodes is the list of name nodes in the atom trailers node inside if node
-    namenodes = if_node.value.find_all('name')
-    # second name in name nodes should be 'append'
-    if namenodes[1].name.value != 'append':
+    # 'name_nodes' is the list of name nodes in 'atomtrailers'
+    name_nodes = atomtrailers.value.find_all('name')
+    # 2nd name in 'name_nodes' should be 'append'
+    if name_nodes[1].name.value != 'append':
         return None
-    # first name in name nodes should be a name of a list
-    name = namenodes[0].name.value
-    # last node to assigm to 'name'
+    # 1st name in 'name_nodes' should be a name of a list
+    name = name_nodes[0].name.value
+    # last node to assign to 'name'
     assignment = get_last_node_before(for_node, name, node_is_assignment_to)
     # last node to mention 'name'
     lastmention = get_last_node_before(for_node, name, node_mentions)
     # type and value checks for assignment node
-    if (assignment is None or assignment is not lastmention or
-        not isinstance(assignment.value, rb.ListNode) or len(assignment.list.value)):
+    if (assignment is None or assignment is not lastmention or not node_is_empty_list(assignment.value)):
         return None
     iterator, target = for_node.iterator, for_node.target
     test = if_node.test
@@ -64,15 +35,16 @@ def _t_for_to_listcomprehension_change(for_node) -> tuple | None:
     # call and test should both mention the iterator
     if not (node_mentions(test,iterator.value) and node_mentions(call,iterator.value)):
         return None
-    # call argument length should be exactly one
-    if len(call.value) > 1:
+    # call arguments' length should be exactly one
+    if not len(call.value) == 1:
         return None
     result = f'[{call.value[0]} for {iterator} in {target} if {test}]'
     return (assignment, result)
 
+# for to if list comprehension transformation
 def t_for_to_listcomprehension(source):
     red = rb.RedBaron(source)
-    # print source code before
+    # print source lines before
     print(red)
     # query all for nodes
     for_nodes = red.find_all("ForNode")
@@ -85,7 +57,7 @@ def t_for_to_listcomprehension(source):
         parent = for_node.parent
         parent.remove(for_node)
     print('-'*150)
-    # print source code after
+    # print source lines after
     print(red)
     changed = red.dumps()  # this is the dump of the changed source code
     print('-'*150)

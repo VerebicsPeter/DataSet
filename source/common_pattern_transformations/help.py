@@ -75,7 +75,17 @@ pattern = {
                     "nodes": [
                         {
                             "type": rb.AtomtrailersNode,
-                            "nodes": "*"
+                            "nodes": [
+                                {
+                                    "type": rb.NameNode, "nodes": []
+                                },
+                                {
+                                    "type": rb.NameNode, "nodes": []
+                                },
+                                {
+                                    "type": rb.CallNode, "nodes": "*"
+                                }
+                            ]
                         }
                     ]
                 }    
