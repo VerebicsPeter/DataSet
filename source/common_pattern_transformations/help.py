@@ -1,56 +1,94 @@
 # Script to muck about with ast and redbaron
 
 #import ast
+
 import redbaron as rb
 
-def match_for_pattern(node):
+import utils
+
+def match_for_loop(node):
     match node:
-        case rb.ForNode(
-            iterator = rb.NameNode(value = 'i')
-        ):
-            return True
-        case None:
-            return False
+        case rb.ForNode() as for_loop:
+            return (
+                len(for_loop.value) == 1 and
+                match_if_else_block_conditions(for_loop.value[0]))
         case _:
             return False
 
-def match_list_pattern(node):
+def match_if_else_block_conditions(node):
     match node:
-        case rb.ListNode():
-            return True
+        case rb.IfelseblockNode() as if_else_block:
+            return (
+                len(if_else_block.value) == 1 and
+                match_if_block_conditions(if_else_block.value[0]))
+        case _: 
+            return False
+
+def match_if_block_conditions(node):
+    match node:
+        case rb.IfNode() as if_block:
+            return (
+                len(if_block.value) == 1 and
+                match_atomtrailers_conditions(if_block.value[0]))
         case _:
             return False
 
-source0 ="""
+def match_atomtrailers_conditions(node):
+    match node:
+        case rb.AtomtrailersNode() as atomtrailers:
+            namenodes = atomtrailers.find_all('name')
+            callnodes = atomtrailers.find_all('call')
+            return (
+                len(namenodes) == 3 and len(callnodes) == 1)
+        case _:
+            return False
+
+source0="""
 l = []
-for k in range(1, 100):
-    if True: l.append(k)
-"""
-
-source1 = """
-if 2: pass
-l = [1, 2, 3]
 for i in range(1, 100):
     if True: l.append(i)
-for k in range(1, 100):
-    if True: l.append(k)
-my_list = [1, 2, 3, 4]
-my_empty_list = []
+for i in range(1, 100):
+    if True: print(i)
+for i in range(1, 100):
+    if True: l.append(i)
+    elif i % 4 == 0: l.append(i**2)
+    elif i % 5 == 0: l.append(i**3)
+for i in range(1, 5):
+    print('Hello, World!')
+    print('Szeretem a levest!')
+    if True == True: pass
+for i in range(1, 100):
+    if True: l.append(i)
+    for j in range(1, 100):
+        if True: l.append(j)
+        for k in range(1, 100):
+            if True: l.append(k)
 """
-
-source2="""
-x = 42
-exp0 = x
-exp1 = x ** 2
-exp2 = x ** 3 + i ** 2 + x
-exp3 = type(x)
-"""
-
-def node_mentions(node, name: str) -> bool:
-    return len(node.find_all('name', value=name))
+pattern = {
+    "type" : rb.ForNode,
+    "nodes": [
+        {
+            "type": rb.IfelseblockNode,
+            "nodes": [
+                {
+                    "type": rb.IfNode,
+                    "nodes": [
+                        {
+                            "type": rb.AtomtrailersNode,
+                            "nodes": "*"
+                        }
+                    ]
+                }    
+            ]
+        }
+    ]
+}
 
 red = rb.RedBaron(source0)
-print(type(red))
+
 for node in red.find_all('ForNode'):
-    print(node)
-    print(node.help())
+    if utils.match_node(node, pattern):  #(match_for_loop(node)):
+        print('-'*55)
+        print(node)
+        print('-'*55)
+        print(node.value.help())
