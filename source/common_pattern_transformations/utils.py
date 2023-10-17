@@ -1,3 +1,5 @@
+# TODO: write test cases for utility functions
+
 # Utility functions for redbaron
 
 import redbaron as rb
@@ -8,7 +10,11 @@ def _not_formatting_node(node) -> bool:
 
 
 def _child_count(node) -> int:
-    if isinstance(node.value, str): return 0  # return 0 on leaf
+    # return 0 on leaf
+    if isinstance(node.value, str): return 0
+    # return 1 on single child
+    if not isinstance(node.value, (rb.NodeList, rb.ProxyList)): return 1
+    # return the length of the filtered proxy list
     return len([x for x in node.value if _not_formatting_node(x)])
 
 
@@ -56,9 +62,16 @@ def match_node(p_node: rb.Node, p_pattern: dict) -> bool:
     if _child_count(p_node) != len(p_pattern['nodes']):
         return False
 
+    # return true on leaf
     if isinstance(p_node.value, str):
         return True
+    
+    # return recursive call on single child
+    if not isinstance(p_node.value, (rb.NodeList, rb.ProxyList)):
+        node, pattern=p_node.value, p_pattern['nodes'][0]
+        return match_node(node, pattern)
 
+    # return false if match fails on child
     for node, pattern in zip(p_node.value, p_pattern['nodes']):
         if not match_node(node, pattern): return False
 

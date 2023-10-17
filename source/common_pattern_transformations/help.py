@@ -4,7 +4,7 @@
 
 import redbaron as rb
 
-import utils
+import utils, patterns
 
 def match_for_loop(node):
     match node:
@@ -64,40 +64,19 @@ for i in range(1, 100):
         for k in range(1, 100):
             if True: l.append(k)
 """
-pattern = {
-    "type" : rb.ForNode,
-    "nodes": [
-        {
-            "type": rb.IfelseblockNode,
-            "nodes": [
-                {
-                    "type": rb.IfNode,
-                    "nodes": [
-                        {
-                            "type": rb.AtomtrailersNode,
-                            "nodes": [
-                                {
-                                    "type": rb.NameNode, "nodes": []
-                                },
-                                {
-                                    "type": rb.NameNode, "nodes": []
-                                },
-                                {
-                                    "type": rb.CallNode, "nodes": "*"
-                                }
-                            ]
-                        }
-                    ]
-                }    
-            ]
-        }
-    ]
-}
 
-red = rb.RedBaron(source0)
+source1 = """
+import numpy as np
+l = [1, 2, 3, 4, 5]
+sum = 0
+for num in l:
+    sum += num
+"""
+
+red = rb.RedBaron(source1)
 
 for node in red.find_all('ForNode'):
-    if utils.match_node(node, pattern):  #(match_for_loop(node)):
+    if utils.match_node(node, patterns.for_sum):  #(match_for_loop(node)):
         print('-'*55)
         print(node)
         print('-'*55)

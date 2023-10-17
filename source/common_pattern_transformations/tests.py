@@ -1,5 +1,6 @@
 import transformations as t
 
+
 source = """
 def even(x): return x % 2 == 0
 
@@ -45,4 +46,16 @@ for i in range(1,3):
 print(result)
 """
 
-t.t_for_to_listcomprehension(source)
+print()
+print('For to list comprehension:')
+print('#'*150)
+print()
+
+t.t_for_to_listc(source)
+
+print()
+print('For to list comprehension with if:')
+print('#'*150)
+print()
+
+t.t_for_to_listc_if(source)
