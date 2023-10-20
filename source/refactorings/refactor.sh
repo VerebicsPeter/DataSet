@@ -4,9 +4,12 @@ resource_dir="$HOME/Documents/DataSet/resources/scripts"
 
 function refactor {
     if [ "$1" != "isort" ] && [ "$1" != "autopep" ] && [ "$1" != "modernize" ]; then
-        [ -z "$1" ] && 
-        echo -e "Can't refactor: no method." || 
-        echo -e "Can't refactor: no method named $1."
+        if [ -z "$1" ]
+        then
+            echo -e "Can't refactor: no method."
+        else
+            echo -e "Can't refactor: no method named $1."
+        fi
         return
     fi
     # Iterate over Python scripts in the directory

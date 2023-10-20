@@ -1,7 +1,6 @@
 import transformations as t
 
-
-source = """
+source0 = """
 def even(x): return x % 2 == 0
 
 result = []
@@ -46,16 +45,31 @@ for i in range(1,3):
 print(result)
 """
 
+source1 = """
+import numpy as np
+l = [1, 2, 3, 4, 5]
+sum = 0
+for num in l:
+    sum += num
+"""
+
 print()
 print('For to list comprehension:')
 print('#'*150)
 print()
 
-t.t_for_to_listc(source)
+t.t_for_to_listc(source0)
 
 print()
 print('For to list comprehension with if:')
 print('#'*150)
 print()
 
-t.t_for_to_listc_if(source)
+t.t_for_to_listc_if(source0)
+
+print()
+print('For to list comprehension with if:')
+print('#'*150)
+print()
+
+t.t_for_to_numpy_sum(source1)

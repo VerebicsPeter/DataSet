@@ -1,6 +1,5 @@
-# TODO: write test cases for utility functions
-
 # Utility functions for redbaron
+# TODO: write test cases for utility functions
 
 import redbaron as rb
 
@@ -46,19 +45,25 @@ def get_last_node_before(node, name = None, predicate = lambda _node, _name: Tru
     return last
 
 
-# IDEA:
+# Summary:
 # instead writing different functions for checking each pattern
-# write a recursive function that checks a recursive dict representing a pattern
+# this recursive function checks a recursive dict representing a pattern and returns true on a match
 def match_node(p_node: rb.Node, p_pattern: dict) -> bool:
     # return false if the typecheck fails
     if not isinstance(p_node, p_pattern['type']):
         return False
     
+    # check attributes if provided
+    if p_pattern.get('attr') != None:
+        for attr in p_pattern['attr']:
+            if (not hasattr(p_node, attr[0]) or not (getattr(p_node, attr[0]) == attr[1])):
+                return False
+    
     # * signals that we don't care about the subnodes of a given node
     if p_pattern['nodes'] == '*':
         return True
 
-    # return false if the number of (not formatting) nodes doesn not match
+    # return false if the number of (non formatting) nodes does not match
     if _child_count(p_node) != len(p_pattern['nodes']):
         return False
 

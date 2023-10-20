@@ -1,7 +1,5 @@
 # Script to muck about with ast and redbaron
 
-#import ast
-
 import redbaron as rb
 
 import utils, patterns
@@ -74,6 +72,10 @@ for num in l:
 """
 
 red = rb.RedBaron(source1)
+
+print(red.help(deep = True))
+
+exit(1)
 
 for node in red.find_all('ForNode'):
     if utils.match_node(node, patterns.for_sum):  #(match_for_loop(node)):

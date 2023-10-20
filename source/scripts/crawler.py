@@ -1,5 +1,6 @@
 import os
-import uuid
+# Use hashing instead of uuids for updating files later
+import hashlib
 
 import utils
 
@@ -13,4 +14,6 @@ DEST = f"{HOME}/Documents/DataSet/resources/scripts"
 scripts = utils.get_python_scripts_at(SOURCE)
 
 for script in scripts:
-    os.popen(f"cp {script['path']} {DEST}/{uuid.uuid4()}.py")
+    hash = hashlib.md5()
+    utils.get_hash(script['path'], hash)
+    os.popen(f"cp {script['path']} {DEST}/{hash.hexdigest()}.py")

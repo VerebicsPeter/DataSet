@@ -1,25 +1,34 @@
 import os
+# Use hashing instead of uuids for updating files later
+import hashlib
 # pymongo for persisting data
 from pymongo import MongoClient
 
 import utils
 
 # Refactorings implemented:
-# - isort (import sorter)
-# - autopep (formatter)
+# - autopep   (formatter)
+# - isort     (import sorter)
 # - modernize (2to3 wrapper)
 
+
 class Refactoring:
+
 
     def __init__(self, id, source: str):
         self.id = id
         self.source = source
         self.refactorings = []
-    
+
+
     def add_refactoring(self, refactoring: dict[str, str]) -> None:
         if "method" not in refactoring or "result" not in refactoring: return
         self.refactorings.append(refactoring)
 
+
+    # TODO: check if refactoring's id already exists in the collection:
+    # if it does     update the record
+    # if it does not insert the record
     def save(self, collection) -> None:
         # return if there's nothing to save
         if len(self.refactorings) == 0: return
@@ -32,7 +41,11 @@ class Refactoring:
             collection.insert_one(refactoring_dict)
         except Exception as err:
             print("Something went wrong while saving the refactoring!\n", err)
-    
+
+
+    # adds a refactoring result to an instance:
+    # script_id should be the hash of the file
+    # scripts   should be the list of filepaths to the refactored files
     @staticmethod
     def add_refactoring_with_method(
         instance, method: str, script_id: str, scripts: list[str]) -> None:
@@ -81,11 +94,11 @@ for script in scripts:
     refactoring = Refactoring(script_id, script_source)
 
     Refactoring.add_refactoring_with_method(
-        refactoring,'isort', script_id, scripts)
+        refactoring, 'isort', script_id, scripts)
     Refactoring.add_refactoring_with_method(
-        refactoring,'autopep', script_id, scripts)
+        refactoring, 'autopep', script_id, scripts)
     Refactoring.add_refactoring_with_method(
-        refactoring,'modernize', script_id, scripts)
+        refactoring, 'modernize', script_id, scripts)
     
     print('>>> refactoring ID:', refactoring.id)
     print('>>> refactorings *:', len(refactoring.refactorings))

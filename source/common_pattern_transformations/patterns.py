@@ -1,6 +1,4 @@
-# TODO: try to implement attribute value checks in these patterns
-
-# Patterns for patter matching on nodes
+# Patterns for matching on nodes
 
 import redbaron as rb
 
@@ -15,7 +13,7 @@ for_to_listc = {
       "type": rb.NameNode, "nodes": []
     },
     {
-      "type": rb.NameNode, "nodes": []
+      "type": rb.NameNode, "attr": [("value", "append")], "nodes": []
     },
     {
     "type": rb.CallNode, "nodes": [
@@ -35,6 +33,7 @@ for_to_listc_if = {
     "nodes": [
     {
       "type": rb.IfNode,
+      "attr": [],
       "nodes": [
       {
         "type": rb.AtomtrailersNode,
@@ -43,7 +42,7 @@ for_to_listc_if = {
           "type": rb.NameNode, "nodes": []
         },
         {
-          "type": rb.NameNode, "nodes": []
+          "type": rb.NameNode, "attr": [("value", "append")], "nodes": []
         },
         {
           "type": rb.CallNode, "nodes": [
@@ -56,19 +55,12 @@ for_to_listc_if = {
   }]
 }
 
-"""
-sum = 0
-for i in range(1, 20):
-  sum += i
-######################
-sum = np.sum(range(1, 20)) #  if numpy is imported
-"""
 
-for_sum = {
+for_to_numpy_sum = {
   "type": rb.ForNode,
   "nodes": [
   {
-    "type": rb.AssignmentNode,
+    "type": rb.AssignmentNode, "attr": [('operator', '+')],
     "nodes": [
     {
       "type": rb.NameNode, "nodes": []
