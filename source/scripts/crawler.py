@@ -1,5 +1,5 @@
 import os
-# Use hashing instead of uuids for updating files later
+
 import hashlib
 
 import utils

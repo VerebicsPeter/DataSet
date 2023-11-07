@@ -1,18 +1,13 @@
 import os
-# Use hashing instead of uuids for updating files later
-import hashlib
-# pymongo for persisting data
+
 from pymongo import MongoClient
 
 import utils
 
 # Refactorings implemented:
-# - autopep   (formatter)
-# - isort     (import sorter)
-# - modernize (2to3 wrapper)
+# - autopep (formatter), isort (import sorter), modernize (2to3 wrapper)
 
-
-class Refactoring:
+class ScriptRefactoringStore:
 
 
     def __init__(self, id, source: str):
@@ -22,25 +17,40 @@ class Refactoring:
 
 
     def add_refactoring(self, refactoring: dict[str, str]) -> None:
-        if "method" not in refactoring or "result" not in refactoring: return
+        if ("method" not in refactoring or 
+            "result" not in refactoring): 
+            return
         self.refactorings.append(refactoring)
 
 
-    # TODO: check if refactoring's id already exists in the collection:
-    # if it does     update the record
-    # if it does not insert the record
     def save(self, collection) -> None:
-        # return if there's nothing to save
+        # return if there is nothing to save
         if len(self.refactorings) == 0: return
-        # else try to save the refactoring
-        try:
-            refactoring_dict = {"_id": self.id, "source": self.source}
-            for r in self.refactorings:
-                refactoring_dict[r['method']] = r['result']
-            
-            collection.insert_one(refactoring_dict)
-        except Exception as err:
-            print("Something went wrong while saving the refactoring!\n", err)
+        
+        # insert
+        if collection.find_one({"_id":self.id}) is None:
+            # try to save the script refactoring
+            try:
+                script_ref = {r['method']:r['result'] for r in self.refactorings}
+                script_ref['_id']    = self.id
+                script_ref['source'] = self.source
+                                
+                collection.insert_one(script_ref)
+                
+                print('Inserting record.')
+            except Exception as err:
+                print("Something went wrong while saving the refactoring!\n", err)
+        # update
+        else:
+            # try to update the refactorings
+            try:
+                refactorings = {r['method']:r['result'] for r in self.refactorings}
+                                
+                collection.update_one({"_id":self.id}, {"$set": refactorings})
+                
+                print('Updating record.')
+            except Exception as err:
+                print("Something went wrong while updating the refactoring!\n", err)
 
 
     # adds a refactoring result to an instance:
@@ -48,59 +58,64 @@ class Refactoring:
     # scripts   should be the list of filepaths to the refactored files
     @staticmethod
     def add_refactoring_with_method(
-        instance, method: str, script_id: str, scripts: list[str]) -> None:
+        instance, method: str, script_hash: str, scripts: list[str]) -> None:
         
-        script_fn = f"{script_id}.{method}.py"
-    
-        if all(s['file'] != script_fn for s in scripts):
-            print(f'{script_fn} not found!')
+        script_name = f"{script_hash}.{method}.py"
+
+        if any(method == m for m in ["_id", "source"]):
+            print(f'"{method}" method is not allowed!')
+            return
+        
+        if all(script_name != s['file'] for s in scripts):
+            print(f'{script_name} not found!')
             return
 
-        with open(f"{root}/{script_fn}") as f:
+        with open(f"{root}/{script_name}") as f:
             content = f.read()
             if len(content): instance.add_refactoring({
                 "method": method, "result": content
             })
 
-# create client
-client = MongoClient()
-# select database
-db = client['refactoring']
-# collection from database
-scripts_collection = db.scripts
+if __name__ == "__main__":
+    # create client
+    client = MongoClient()
+    # select database
+    db = client['refactoring']
+    # collection from database
+    scripts_collection = db.scripts
 
-HOME = os.path.expanduser('~')
-PATH = f"{HOME}/Documents/DataSet/resources/scripts"
+    HOME = os.path.expanduser('~')
+    PATH = f"{HOME}/Documents/DataSet/resources/scripts"
 
-scripts = utils.get_python_scripts_at(PATH)
+    scripts = utils.get_python_scripts_at(PATH)
 
-for script in scripts:
-    # skip the refactored scripts
-    if len(script['file'].split('.')) != 2: continue
+    for script in scripts:
+        # skip the refactored scripts
+        if len(script['file'].split('.')) != 2: continue
 
-    root = script['root']
-    path = script['path']
-    file = script['file']
+        root = script['root']
+        path = script['path']
+        file = script['file']
 
-    # original script name (uuid)
-    script_id = file.split('.')[0]
-    # original script string
-    script_source = ''
+        # original script name (hash)
+        script_hash = file.split('.')[0]
+        # original script content
+        script_source = ''
 
-    with open(path) as f: script_source = f.read()
-    # continue if reading failed or file is empty
-    if not len(script_source): continue
+        with open(path) as f: script_source = f.read()
+        # continue if reading failed or file is empty
+        if not len(script_source): continue
 
-    refactoring = Refactoring(script_id, script_source)
+        refactoring = ScriptRefactoringStore(script_hash, script_source)
 
-    Refactoring.add_refactoring_with_method(
-        refactoring, 'isort', script_id, scripts)
-    Refactoring.add_refactoring_with_method(
-        refactoring, 'autopep', script_id, scripts)
-    Refactoring.add_refactoring_with_method(
-        refactoring, 'modernize', script_id, scripts)
-    
-    print('>>> refactoring ID:', refactoring.id)
-    print('>>> refactorings *:', len(refactoring.refactorings))
+        ScriptRefactoringStore.add_refactoring_with_method(
+            refactoring, 'autopep',   script_hash, scripts)
+        ScriptRefactoringStore.add_refactoring_with_method(
+            refactoring, 'isort',     script_hash, scripts)
+        ScriptRefactoringStore.add_refactoring_with_method(
+            refactoring, 'modernize', script_hash, scripts)
+        
+        print('>>> refactoring ID:', refactoring.id)
+        print('>>> refactorings *:', len(refactoring.refactorings))
 
-    refactoring.save(scripts_collection)
+        refactoring.save(scripts_collection)

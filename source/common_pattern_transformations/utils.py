@@ -52,13 +52,13 @@ def match_node(p_node: rb.Node, p_pattern: dict) -> bool:
     # return false if the typecheck fails
     if not isinstance(p_node, p_pattern['type']):
         return False
-    
+
     # check attributes if provided
     if p_pattern.get('attr') != None:
         for attr in p_pattern['attr']:
             if (not hasattr(p_node, attr[0]) or not (getattr(p_node, attr[0]) == attr[1])):
                 return False
-    
+
     # * signals that we don't care about the subnodes of a given node
     if p_pattern['nodes'] == '*':
         return True
@@ -70,7 +70,7 @@ def match_node(p_node: rb.Node, p_pattern: dict) -> bool:
     # return true on leaf
     if isinstance(p_node.value, str):
         return True
-    
+
     # return recursive call on single child
     if not isinstance(p_node.value, (rb.NodeList, rb.ProxyList)):
         node, pattern=p_node.value, p_pattern['nodes'][0]

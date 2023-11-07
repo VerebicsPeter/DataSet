@@ -1,10 +1,45 @@
 # Implementations of code transformations
 # NOTE: Use 'match ... case' for readability
+# TODO: transformation function that takes multiple nodes as parameters
+# TODO: typing and callable
 
 import redbaron as rb
 
 from utils import match_node, node_mentions, node_is_assignment_to, node_is_empty_list, get_last_node_before
 from patterns import for_to_listc, for_to_listc_if, for_to_numpy_sum
+
+
+def transform_for_nodes(source, match, change):
+    red = rb.RedBaron(source)
+    print(red)
+    for_nodes = red.find_all('for')
+    for for_node in for_nodes:
+        # skip if node doesn't match
+        if not match(for_node): continue
+        # get change
+        result = change(for_node)
+        # skip if change can't be applied
+        if result is None: continue
+        # apply the change
+        result[0].value = result[1]
+        # unlink the for node
+        parent = for_node.parent
+        parent.remove(for_node)
+    print('-'*150)
+    # print source lines after
+    print(red)
+    changed = red.dumps()  # this is the dump of the changed source code
+    print('-'*150)
+    print(changed)
+
+
+def get_module_import(source_ast: rb.RedBaron, module_name: str):
+    # check if numpy is imported
+    imports = source_ast.find_all('import')
+    import_node = imports.find_all('name', value=module_name)
+    if import_node is None: return None
+    import_alias = import_node.parent.target if isinstance(import_node.parent, rb.DottedAsNameNode) else module_name
+    return (import_node, import_alias)
 
 
 # for to list comprehension match
@@ -13,7 +48,6 @@ def _t_for_to_listc_match(for_node) -> bool:
 
 # for to list comprehension change
 def _t_for_to_listc_change(for_node) -> tuple | None:
-    if not _t_for_to_listc_match(for_node):  return None
     # get nodes
     atomtrailers = for_node.value.find('atomtrailers')
     l_name_nodes = atomtrailers.value.find_all('name')
@@ -39,25 +73,7 @@ def _t_for_to_listc_change(for_node) -> tuple | None:
 
 # for to list comprehension transformation
 def t_for_to_listc(source):
-    red = rb.RedBaron(source)
-    # print source lines before
-    print(red)
-    # query all for nodes
-    for_nodes = red.find_all('for')
-    for for_node in for_nodes:
-        result = _t_for_to_listc_change(for_node)
-        # skip if no transformations can be applied
-        if result is None: continue
-        # apply transformation
-        result[0].value = result[1]
-        parent = for_node.parent
-        parent.remove(for_node)
-    print('-'*150)
-    # print source lines after
-    print(red)
-    changed = red.dumps()  # this is the dump of the changed source code
-    print('-'*150)
-    print(changed)
+    transform_for_nodes(source, _t_for_to_listc_match, _t_for_to_listc_change)
 
 
 # for to if list comprehension match
@@ -66,7 +82,6 @@ def _t_for_to_listc_if_match(for_node) -> bool:
 
 # for to if list comprehension with if change
 def _t_for_to_listc_if_change(for_node) -> tuple | None:
-    if not _t_for_to_listc_if_match(for_node): return None
     # get nodes
     if_node = for_node.value.find('ifelseblock').value.find('if')
     atomtrailers = if_node.value.find('atomtrailers')
@@ -96,25 +111,7 @@ def _t_for_to_listc_if_change(for_node) -> tuple | None:
 
 # for to if list comprehension transformation
 def t_for_to_listc_if(source):
-    red = rb.RedBaron(source)
-    # print source lines before
-    print(red)
-    # query all for nodes
-    for_nodes = red.find_all('for')
-    for for_node in for_nodes:
-        result = _t_for_to_listc_if_change(for_node)
-        # skip if no transformations can be applied
-        if result is None: continue
-        # apply transformation
-        result[0].value = result[1]
-        parent = for_node.parent
-        parent.remove(for_node)
-    print('-'*150)
-    # print source lines after
-    print(red)
-    changed = red.dumps()  # this is the dump of the changed source code
-    print('-'*150)
-    print(changed)
+    transform_for_nodes(source, _t_for_to_listc_if_match, _t_for_to_listc_if_change)
 
 
 # for to numpy sum match
@@ -159,10 +156,9 @@ def _t_for_to_numpy_sum_change(for_node, numpy = 'numpy'):
 # for to numpy sum transformation
 def t_for_to_numpy_sum(source):
     red = rb.RedBaron(source)
-    # check if numpy is imported
-    imports = red.find_all('import')
-    numpy_import = imports.find_all('name',value='numpy')
-    numpy_alias = numpy_import.parent.target if isinstance(numpy_import.parent, rb.DottedAsNameNode) else 'numpy'
+    numpy = get_module_import(red, 'numpy')
+    if numpy is None: return None
+    numpy_alias = numpy[1]    
     # print source lines before
     print(red)
     # query all for nodes
