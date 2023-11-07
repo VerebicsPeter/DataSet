@@ -3,10 +3,12 @@
 resource_dir="$HOME/Documents/DataSet/resources/scripts"
 
 function refactor {
-    if [ "$1" != "isort" ] && [ "$1" != "autopep" ] && [ "$1" != "modernize" ]; then
-        echo -e "Can't refactor: method $1"
+    if [ "$1" != "isort" ] && [ "$1" != "autopep" ] && [ "$1" != "modernize" ]
+    then
+        echo -e "Can't refactor method $1."
         return
     fi
+
     # Iterate over Python scripts in the directory
     for script in "$resource_dir"/*.py; do
         # Get the base name of the script (without the path or extension)
@@ -54,5 +56,3 @@ function refactor {
         fi
     done
 }
-
-refactor $1
