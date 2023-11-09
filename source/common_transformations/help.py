@@ -65,13 +65,19 @@ for i in range(1, 100):
 
 source1 = """
 import numpy as np
+
 l = [1, 2, 3, 4, 5]
 sum = 0
 for num in l:
     sum += num
 """
 
-red = rb.RedBaron(source1)
+#import numpy
+source2 = """
+import numpy as np
+"""
+
+red = rb.RedBaron(source2)
 
 print(red.help(deep = True))
 

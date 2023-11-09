@@ -3,7 +3,7 @@
 import redbaron as rb
 
 
-for_to_listc = {
+for_to_list_comprehension = {
   "type" : rb.ForNode,
   "nodes": [
   {
@@ -25,7 +25,7 @@ for_to_listc = {
 }
 
 
-for_to_listc_if = {
+for_to_list_comprehension_if = {
   "type" : rb.ForNode,
   "nodes": [
   {

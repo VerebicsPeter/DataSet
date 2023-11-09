@@ -1,4 +1,5 @@
 # Utility functions for redbaron
+# TODO: typing
 # TODO: write test cases for utility functions
 
 import redbaron as rb
@@ -17,34 +18,26 @@ def _child_count(node) -> int:
     return len([x for x in node.value if _not_formatting_node(x)])
 
 
-def _child_count_rec(node, child_type: str | None = None) -> int:
+def _child_count_recursive(node, ctype: str | None = None) -> int:
     if isinstance(node.value, str): return 0  # return 0 on leaf
-    return len(node.value.find_all(child_type))
+    return len(node.value.find_all(ctype))
+
+
+def node_assigns(node, name: str) -> bool:
+    if isinstance(node, rb.AssignmentNode):
+        return node.target.name.value == name
+    return False
 
 
 def node_mentions(node, name: str) -> bool:
     return len(node.find_all('name', value=name)) > 0
 
 
-def node_is_assignment_to(node, name: str) -> bool:
-    if isinstance(node, rb.AssignmentNode):
-        return node.target.name.value == name
-    return False
-
-
 def node_is_empty_list(node) -> bool:
     return isinstance(node, rb.ListNode) and len(node.value) == 0
 
 
-def get_last_node_before(node, name = None, predicate = lambda _node, _name: True) -> (rb.Node | None):
-    index = node.index_on_parent
-    if index is None: return None
-    last = None
-    for x in node.parent[0:index]:
-        if predicate(x, name): last = x
-    return last
-
-
+# TODO: proper docstring
 # Summary:
 # instead writing different functions for checking each pattern
 # this recursive function checks a recursive dict representing a pattern and returns true on a match
@@ -81,3 +74,27 @@ def match_node(p_node: rb.Node, p_pattern: dict) -> bool:
         if not match_node(node, pattern): return False
 
     return True
+
+
+def get_last_node_before(node, name: str | None = None, predicate = lambda _node, _name: True) -> (rb.Node | None):
+    """Gets the last node before the parameter `node` in the same scope and returns it. Returns `None` if no nodes are before.
+    """
+    index = node.index_on_parent
+    if index is None: return None
+    last = None
+    for x in node.parent[0:index]:
+        if predicate(x, name): last = x
+    return last
+
+
+def get_module_name(ast, module_name: str) -> str | None:
+    import_node = ast.find_all('import').find('name', value=module_name)
+    
+    match import_node:
+        case None:
+            return None
+    match import_node.parent:
+        case rb.DottedAsNameNode():
+            return import_node.parent.target
+        case _:
+            return module_name
