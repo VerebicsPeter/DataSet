@@ -1,30 +1,18 @@
-# Implementations of code transformations
-# NOTE: Use 'match ... case' for readability
-# TODO: typing and callable
-# TODO: maybe define two methods (get_changes, apply_changes) in transformation classes
-# Other
-# TODO: Tamásnak írni a csoportban a githubos cuccal kapcsolatban
+# Implementations of rules
 
 from abc import ABC, abstractmethod
 
-import redbaron.nodes as rb
-
 from redbaron import RedBaron, Node
-
-from utils import (
-    match_node,
-    node_assigns,
-    node_mentions,
-    node_is_empty_list,
-    get_last_node_before,
-    get_module_name
-)
 
 from patterns import (
     for_to_list_comprehension,
     for_to_list_comprehension_if,
+    for_to_dict_comprehension,
+    for_to_dict_comprehension_if,
     for_to_numpy_sum
 )
+
+from utils import *
 
 
 class Rule(ABC):
@@ -47,9 +35,8 @@ class ForToListComprehension(Rule):
         iterator, target = node.iterator, node.target
         
         atomtrailers = node.value.find('atomtrailers')
-        name_nodes = atomtrailers.value.find_all('name')
         
-        list_name = name_nodes[0].name.value
+        list_name = atomtrailers.value.find('name').value
         
         last_assign  = get_last_node_before(node, list_name, node_assigns)
         last_mention = get_last_node_before(node, list_name, node_mentions)
@@ -87,21 +74,19 @@ class ForToListComprehensionIf(Rule):
         if_node = node.value.find('ifelseblock').value.find('if')
         
         test = if_node.test
+        
         match test:
             case Node() as _node:
                 if not node_mentions(_node, iterator.value):
                     return None
         
         atomtrailers = if_node.value.find('atomtrailers')
-        name_nodes = atomtrailers.value.find_all('name')
         
-        list_name = name_nodes[0].name.value
+        list_name = atomtrailers.value.find('name').value
         
-        # last node to assign to 'list_name'
         last_assign  = get_last_node_before(node, list_name, node_assigns)
-        # last node to mention 'list_name'
         last_mention = get_last_node_before(node, list_name, node_mentions)
-        # type and value checks for assignment node
+        
         match last_assign:
             case None:
                 return None
@@ -124,6 +109,91 @@ class ForToListComprehensionIf(Rule):
         return (last_assign, result)
 
 
+class ForToDictComprehension(Rule):
+    
+    def match(self, node: Node) -> bool:
+        return match_node(node, for_to_dict_comprehension)
+    
+    def change(self, node: Node) -> tuple | None:
+        iterator, target = node.iterator, node.target
+        
+        for_assignment = node.value.find('assignment')
+        
+        assignment_target = for_assignment.target
+        assignment_value  = for_assignment.value
+        
+        get_item = assignment_target.find('getitem')
+        
+        match get_item:
+            case Node() as _node:
+                if not node_mentions(_node, iterator.value):
+                    return False
+        
+        dict_name = assignment_target.find('name').value
+        
+        last_assign  = get_last_node_before(node, dict_name, node_assigns)
+        last_mention = get_last_node_before(node, dict_name, node_mentions)
+        
+        match last_assign:
+            case None:
+                return None
+            case Node() as _node:
+                if last_mention is not _node:
+                    return None
+                if not node_is_empty_dict(_node.value):
+                    return None
+        
+        result = '{'+f'{get_item.value} : {assignment_value} for {iterator} in {target}'+'}'
+        return (last_assign, result)
+
+
+class ForToDictComprehensionIf(Rule):
+    
+    def match(self, node: Node) -> bool:
+        return match_node(node, for_to_dict_comprehension_if)
+    
+    def change(self, node: Node) -> tuple | None:
+        iterator, target = node.iterator, node.target
+        
+        if_node = node.value.find('ifelseblock').value.find('if')
+        
+        test = if_node.test
+        
+        match test:
+            case Node() as _node:
+                if not node_mentions(_node, iterator.value):
+                    return None
+        
+        assignment = if_node.value.find('assignment')
+        
+        assignment_target = assignment.target
+        assignment_value  = assignment.value
+        
+        get_item = assignment_target.find('getitem')
+        
+        match get_item:
+            case Node() as _node:
+                if not node_mentions(_node, iterator.value):
+                    return False
+        
+        dict_name = assignment_target.find('name').value
+        
+        last_assign  = get_last_node_before(node, dict_name, node_assigns)
+        last_mention = get_last_node_before(node, dict_name, node_mentions)
+        
+        match last_assign:
+            case None:
+                return None
+            case Node() as _node:
+                if last_mention is not _node:
+                    return None
+                if not node_is_empty_dict(_node.value):
+                    return None
+        
+        result = '{'+f'{get_item.value} : {assignment_value} for {iterator} in {target} if {test}'+'}'
+        return (last_assign, result)
+
+
 class ForToNumpySum(Rule):
     
     def __init__(self, ast: RedBaron) -> None:
@@ -136,11 +206,10 @@ class ForToNumpySum(Rule):
     def change(self, node: Node) -> tuple | None:
         iterator, target = node.iterator, node.target
 
-        for_assignment = node.value.find('assignment')
-        # inc variable's name
-        inc_name = for_assignment.value.find('name')
-        # sum variable's name
-        sum_name = for_assignment.target.value
+        assignment = node.value.find('assignment')
+
+        inc_name = assignment.value.find('name')   
+        sum_name = assignment.target.value
         
         match iterator:
             case Node() as _node:
@@ -155,10 +224,8 @@ class ForToNumpySum(Rule):
             case Node() as _node:
                 if last_mention is not _node:
                     return None
-                if (_node.value.value != '0'
-                    or 
-                    not isinstance(_node.value, rb.IntNode)
-                ):  return None
+                if node_is_zero_numeric(node):
+                    return None
         
         target_last_mention = get_last_node_before(last_assign, target.value, node_mentions)
         # if target is not in scope return None
@@ -166,43 +233,3 @@ class ForToNumpySum(Rule):
         
         result = f"{self.numpy}.sum({target})"
         return (last_assign, result)
-
-
-class ForNodeTransformation():
-    def __init__(self, ast: RedBaron, rule: Rule, params: dict | None = None) -> None:
-        self.ast    = ast
-        self.rule   = rule
-        self.params = params
-    
-    def transform_nodes(self):
-        # print source lines before
-        print(self.ast)
-        print('-'*150)
-        
-        for_nodes = self.ast.find_all('for')
-        
-        for for_node in for_nodes:
-            # skip if node does not match
-            if not self.rule.match(for_node): continue
-            
-            result = None
-            # get change
-            if self.params is None:
-                result = self.rule.change(for_node)
-            else:
-                result = self.rule.change(for_node, self.params)
-            
-            # skip if there is no change to be applied
-            if result is None: continue
-            
-            # apply the change
-            result[0].value = result[1]
-            # unlink the for node
-            parent = for_node.parent
-            parent.remove(for_node)
-        
-        # print source lines after
-        print(self.ast)
-        changed = self.ast.dumps()  # this is the dump of the changed source code
-        print('-'*150)
-        print(changed)
