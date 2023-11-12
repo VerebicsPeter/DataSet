@@ -1,2 +1,4 @@
- - read about contrastive learning and contra code
- - read 
+# Ideas
+
+- read about contrastive learning and contra code
+- read
