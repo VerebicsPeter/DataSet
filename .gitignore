@@ -3,10 +3,8 @@
 /.vscode
 /.idea
 /resources
-/scripts/__pycache__
-/transformations/__pycache__
-
 # Byte-compiled / optimized / DLL files
+**/__pycache__
 __pycache__/
 *.py[cod]
 
