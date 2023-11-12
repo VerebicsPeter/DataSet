@@ -4,9 +4,7 @@ from transformations import ForNodeTransformation
 
 from rules import (
     ForToListComprehension,
-    ForToListComprehensionIf,
     ForToDictComprehension,
-    ForToDictComprehensionIf,
     ForToNumpySum
 )
 
@@ -17,8 +15,6 @@ for i in range(1, 5):
     l0.append(i * i)
 
 if 1:
-    num_dict = {"a": 1, "b": 2, "c": 3}
-    
     l1 = []
     for i in ['a', 'b', 'c']:
         l1.append(i)
@@ -36,11 +32,12 @@ if 2:
 """
 
 source_for_to_list_if = """
-def even(x): return x % 2 == 0
+def even (x): return x % 2 == 0
 def twice(x): return 2 * x
 
+nums = [1, 2, 3, 4, 5]
 l0 = []
-for i in range(1, 5):
+for i in nums:
     if even(i): l0.append(i * i)
 
 if 1:
@@ -75,8 +72,8 @@ for x in range(10):
 
 source_for_to_numpy_sum = """
 import numpy as np
-l = [1, 2, 3, 4, 5]
 sum = 0
+l = [1, 2, 3, 4, 5]
 for num in l:
     sum += num
 """
@@ -95,7 +92,7 @@ def test_for_to_list_if():
     red = RedBaron(source_for_to_list_if)
     transformation = ForNodeTransformation(
         ast = red,
-        rule = ForToListComprehensionIf()
+        rule = ForToListComprehension()
     )
     transformation.transform_nodes()
 
@@ -107,13 +104,13 @@ def test_for_to_dict():
         rule = ForToDictComprehension()
     )
     transformation.transform_nodes()
-    
+
 
 def test_for_to_dict_if():
     red = RedBaron(source_for_to_dict_if)
     transformation = ForNodeTransformation(
         ast = red,
-        rule = ForToDictComprehensionIf()
+        rule = ForToDictComprehension()
     )
     transformation.transform_nodes()
 
@@ -128,4 +125,4 @@ def test_for_to_numpy_sum():
 
 
 if __name__ == "__main__":
-    test_for_to_dict_if()
+    test_for_to_numpy_sum()

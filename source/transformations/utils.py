@@ -6,20 +6,20 @@
 import redbaron as rb
 
 
-def _non_formatting_node(node) -> bool:
+def __non_formatting_node(node) -> bool:
     return not isinstance(node, (rb.EndlNode, rb.SpaceNode, rb.CommentNode))
 
 
-def _child_count(node) -> int:
+def __child_count(node) -> int:
     # return 0 on leaf
     if isinstance(node.value, str): return 0
     # return 1 on single child
     if not isinstance(node.value, (rb.NodeList, rb.ProxyList)): return 1
     # return the length of the filtered proxy list
-    return len([x for x in node.value if _non_formatting_node(x)])
+    return len([x for x in node.value if __non_formatting_node(x)])
 
 
-def _child_count_recursive(node, ctype: str) -> int:
+def __child_count_recursive(node, ctype: str) -> int:
     if isinstance(node.value, str): return 0  # return 0 on leaf
     return len(node.value.find_all(ctype))
 
@@ -34,12 +34,8 @@ def node_mentions(node, name: str) -> bool:
     return len(node.find_all('name', value=name)) > 0
 
 
-def node_is_empty_list(node) -> bool:
-    return isinstance(node, rb.ListNode) and len(node.value) == 0
-
-
-def node_is_empty_dict(node) -> bool:
-    return isinstance(node, rb.DictNode) and len(node.value) == 0   
+def node_is_empty_collection(node) -> bool:
+    return isinstance(node, (rb.ListNode, rb.SetNode, rb.DictNode)) and len(node.value) == 0
 
 
 def node_is_zero_numeric(node) -> bool:
@@ -81,7 +77,7 @@ def match_node(p_node: rb.Node, p_pattern: dict) -> bool:
         return True
 
     # return false if the number of (non formatting) nodes does not match
-    if _child_count(p_node) != len(p_pattern['nodes']):
+    if __child_count(p_node) != len(p_pattern['nodes']):
         return False
 
     # return true on leaf
@@ -106,10 +102,27 @@ def get_last_node_before(node, name: str | None = None, predicate = lambda _node
     index = node.index_on_parent
     if index is None: return None
     last = None
-    for x in node.parent[0:index]:
+    for x in node.parent[0 : index]:
         if predicate(x, name): last = x
     return last
 
+
+def get_last_node_between(node_a, node_b, name: str, predicate = lambda a, b, _name: True) -> rb.Node | None:
+    """Gets the last node between the parameters `node_a` and `node_b` in the same scope and returns it. Returns `None` if no such nodes were found.
+    """
+    if node_a.parent is not node_b.parent: return None
+    
+    indexes = [node_a.index_on_parent, node_b.index_on_parent]
+    s_index = min(indexes)
+    e_index = max(indexes)
+    parent = node_a.parent
+    
+    if s_index is None or e_index is None: return None
+    
+    last = None
+    for x in parent[s_index : e_index]:
+        if predicate(x, name): last = x
+    return last
 
 def get_module_name(ast, module_name: str) -> str | None:
     import_node = ast.find_all('import').find('name', value=module_name)

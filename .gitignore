@@ -2,6 +2,5 @@
 /.vscode
 /.idea
 /resources
-/source/scripts/__pycache__
-/source/common_transformations/__pycache__
+/source/*/__pycache__
 *.log

@@ -13,10 +13,9 @@ from rules import Rule
 
 class ForNodeTransformation():
     
-    def __init__(self, ast: RedBaron, rule: Rule, params: dict | None = None) -> None:
+    def __init__(self, ast: RedBaron, rule: Rule) -> None:
         self.ast    = ast
         self.rule   = rule
-        self.params = params
     
     def transform_nodes(self):
         # print source lines before
@@ -29,12 +28,8 @@ class ForNodeTransformation():
             # skip if node does not match
             if not self.rule.match(for_node): continue
             
-            result = None
             # get change
-            if self.params is None:
-                result = self.rule.change(for_node)
-            else:
-                result = self.rule.change(for_node, self.params)    
+            result = self.rule.change(for_node)
             # skip if there is no change to be applied
             if result is None: continue
             

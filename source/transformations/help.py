@@ -48,7 +48,7 @@ for x in range(10):
 """
 
 red = rb.RedBaron(source)
-
-print(red.find('dict').help(deep = True))
-print(len(red.find('dict')))
+for_node = red.find('for')
+#print(for_node.value.help(deep = True))
+#print(for_node.find('if').help())
 print('-'*150)
