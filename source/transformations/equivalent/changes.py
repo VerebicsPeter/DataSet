@@ -2,13 +2,12 @@
 
 # TODO: define function to decide if a node is before another
 
+
 from abc import ABC, abstractmethod
 
-from redbaron import (
-    Node, ForNode, IntNode, FloatNode, ListNode, DictNode, NameNode
-)
+from redbaron import (Node, ForNode, IntNode, FloatNode, ListNode, DictNode, NameNode)
 
-from utils import *
+from transformations.utils.node import *
 
 
 class ForChange(ABC):
@@ -39,15 +38,15 @@ class ForChange(ABC):
                 return node_is_zero_numeric(_node)
             case _: return False
 
-    def _get_main_operation(self, type: str) -> Node | None:
+    def _get_main_operation(self, ctype: str) -> Node | None:
         operation_node = None
         match self.test:
             case None:
-                operation_node = self.for_node.value.find(type)
+                operation_node = self.for_node.value.find(ctype)
             case Node() as _node:
                 if not node_mentions(_node, self.iterator.value):
                     return None
-                operation_node = self.if_node.value.find(type)
+                operation_node = self.if_node.value.find(ctype)
         return  operation_node
     
     def _get_init_assignment(self, name: str) -> Node | None:

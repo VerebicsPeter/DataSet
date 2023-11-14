@@ -1,8 +1,8 @@
 # Script to muck about with ast and redbaron
 
+
 import redbaron as rb
 
-import utils, patterns
 
 def match_for_loop(node):
     match node:
@@ -13,6 +13,7 @@ def match_for_loop(node):
         case _:
             return False
 
+
 def match_if_block_conditions(node):
     match node:
         case rb.IfNode() as if_block:
@@ -22,6 +23,7 @@ def match_if_block_conditions(node):
         case _:
             return False
 
+
 def match_if_else_block_conditions(node):
     match node:
         case rb.IfelseblockNode() as if_else_block:
@@ -30,6 +32,7 @@ def match_if_else_block_conditions(node):
                 match_if_block_conditions(if_else_block.value[0]))
         case _: 
             return False
+
 
 def match_atomtrailers_conditions(node):
     match node:
@@ -41,14 +44,14 @@ def match_atomtrailers_conditions(node):
         case _:
             return False
 
+
 source = """
 newdict = {}
 for x in range(10):
     newdict[x + 1] = x ** 3
 """
 
-red = rb.RedBaron(source)
-for_node = red.find('for')
-#print(for_node.value.help(deep = True))
-#print(for_node.find('if').help())
+#red = rb.RedBaron(source),
+#for_node = red.find('for')
+
 print('-'*150)

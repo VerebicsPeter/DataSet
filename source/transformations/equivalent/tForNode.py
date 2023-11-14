@@ -1,23 +1,52 @@
-# Implementations of code transformations
+# Implementations of for node transformations transformations
 
-# NOTE: Use 'match ... case' for readability
 # TODO: typing and callable
 # TODO: maybe define two methods (get_changes, apply_changes) in transformation classes
-# Other
 # TODO: Tamásnak írni a csoportban a githubos cuccal kapcsolatban
 
-from redbaron import RedBaron
 
-from rules import Rule
+from redbaron import RedBaron, ForNode
+
+from .rules import Rule
 
 
 class ForNodeTransformation():
+
+    def __init__(self, node: ForNode, rule: Rule) -> None:
+        self.node = node
+        self.rule = rule
+    
+    def transform_node(self) -> None:
+        # print source lines before
+        print(self.node)
+        print('-'*150)
+        
+        if self.rule.match(self.node):
+            result = self.rule.change(self.node)
+            
+            if result is None:
+                return
+            else:
+                # apply the change
+                result[0].value = result[1]
+                # unlink the for node
+                parent = self.node.parent
+                parent.remove(self.node)
+            
+        # print source lines after
+        print(self.node)
+        changed = self.node.dumps()  # this is the dump of the changed source code
+        print('-'*150)
+        print(changed)
+
+
+class ForNodesTransformation():
     
     def __init__(self, ast: RedBaron, rule: Rule) -> None:
-        self.ast    = ast
-        self.rule   = rule
+        self.ast  = ast
+        self.rule = rule
     
-    def transform_nodes(self):
+    def transform_nodes(self) -> None:
         # print source lines before
         print(self.ast)
         print('-'*150)

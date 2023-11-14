@@ -3,6 +3,7 @@
 # TODO: typing
 # TODO: write test cases for utility functions
 
+
 import redbaron as rb
 
 
@@ -19,9 +20,9 @@ def __child_count(node) -> int:
     return len([x for x in node.value if __non_formatting_node(x)])
 
 
-def __child_count_recursive(node, ctype: str) -> int:
+def __child_count_recursive(node, type: str) -> int:
     if isinstance(node.value, str): return 0  # return 0 on leaf
-    return len(node.value.find_all(ctype))
+    return len(node.value.find_all(type))
 
 
 def node_assigns(node, name: str) -> bool:

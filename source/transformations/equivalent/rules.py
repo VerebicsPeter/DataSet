@@ -1,10 +1,11 @@
 # Implementations of rules
 
+
 from abc import ABC, abstractmethod
 
-from redbaron import RedBaron, Node, ForNode
+from redbaron import RedBaron, ForNode
 
-from patterns import (
+from .patterns import (
     for_to_list_comprehension,
     for_to_list_comprehension_if,
     for_to_dict_comprehension,
@@ -12,13 +13,13 @@ from patterns import (
     for_to_numpy_sum
 )
 
-from changes import (
+from .changes import (
     ForToListComprehensionChange,
     ForToDictComprehensionChange,
     ForToNumpySumChange
 )
 
-from utils import *
+from ..utils.node import *
 
 
 class Rule(ABC):
