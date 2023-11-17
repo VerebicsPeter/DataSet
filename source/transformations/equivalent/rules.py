@@ -1,9 +1,12 @@
 # Implementations of rules
 
+# TODO: maybe move rules from here to their own transformation file
 
 from abc import ABC, abstractmethod
 
-from redbaron import RedBaron, ForNode
+from redbaron import RedBaron #, ForNode
+
+from redbaron.nodes import *
 
 from .patterns import (
     for_to_list_comprehension,
@@ -31,7 +34,7 @@ class Rule(ABC):
         pass
     
     @abstractmethod
-    def change(self, *args, **kwargs) -> tuple | None:
+    def change(self, *args, **kwargs) -> object | None:
         pass
 
 
@@ -78,3 +81,39 @@ class ForToNumpySum(Rule):
     def change(self, node: ForNode) -> tuple | None:
         change = ForToNumpySumChange(node, self.numpy)
         return change.get_change()
+
+
+class ElevateAssignment(Rule):
+    
+    def match(self, node: AssignmentNode):
+        return (
+            node.parent is not None
+            and 
+            len(node.parent)
+            and
+            node.index_on_parent != 0
+        )
+    
+    # TODO: FORD. PROG. algoritmus maybe
+    def change(self, node: AssignmentNode):
+        parent = node.parent
+        
+        names = [x.value for x in node.value.find_all('name')]
+
+        first, last = parent.filtered()[0], None
+
+        i = node.index_on_parent
+        
+        if i is not None:
+            for x in node.parent[0: i]:
+                if any(node_mentions(x, name) for name in names):
+                    last = x
+        
+        p = node.dumps()
+        
+        if last is None:
+            first.insert_before(p)
+        else:
+            last.insert_after(p)
+            
+        parent.remove(node)

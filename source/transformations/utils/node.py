@@ -125,6 +125,7 @@ def get_last_node_between(node_a, node_b, name: str, predicate = lambda a, b, _n
         if predicate(x, name): last = x
     return last
 
+
 def get_module_name(ast, module_name: str) -> str | None:
     import_node = ast.find_all('import').find('name', value=module_name)
     

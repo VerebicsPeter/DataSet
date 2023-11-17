@@ -3,7 +3,7 @@
 
 from redbaron import RedBaron
 
-from transformations.equivalent.tForNode import ForNodesTransformation
+from transformations.equivalent.tForNode import ForNodeTransformation
 
 from transformations.equivalent.rules import (
     ForToListComprehension,
@@ -74,7 +74,7 @@ for num in l:
 
 def test_for_to_list():
     red = RedBaron(source_for_to_list)
-    transformation = ForNodesTransformation(
+    transformation = ForNodeTransformation(
         ast=red,
         rule=ForToListComprehension()
     )
@@ -83,7 +83,7 @@ def test_for_to_list():
 
 def test_for_to_list_if():
     red = RedBaron(source_for_to_list_if)
-    transformation = ForNodesTransformation(
+    transformation = ForNodeTransformation(
         ast=red,
         rule=ForToListComprehension()
     )
@@ -92,7 +92,7 @@ def test_for_to_list_if():
 
 def test_for_to_dict():
     red = RedBaron(source_for_to_dict)
-    transformation = ForNodesTransformation(
+    transformation = ForNodeTransformation(
         ast=red,
         rule=ForToDictComprehension()
     )
@@ -101,7 +101,7 @@ def test_for_to_dict():
 
 def test_for_to_dict_if():
     red = RedBaron(source_for_to_dict_if)
-    transformation = ForNodesTransformation(
+    transformation = ForNodeTransformation(
         ast=red,
         rule=ForToDictComprehension()
     )
@@ -110,7 +110,7 @@ def test_for_to_dict_if():
 
 def test_for_to_numpy_sum():
     red = RedBaron(source_for_to_numpy_sum)
-    transformation = ForNodesTransformation(
+    transformation = ForNodeTransformation(
         ast=red,
         rule=ForToNumpySum(red)
     )
