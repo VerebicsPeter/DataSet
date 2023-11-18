@@ -7,6 +7,7 @@ from transformations.equivalent.tAssignmentNode import AssignmentNodeTransformat
 
 from transformations.equivalent.rules import ElevateAssignment
 
+
 source_elevate_assignment = """
 a = [1, 2, 3]
 a.append(4)

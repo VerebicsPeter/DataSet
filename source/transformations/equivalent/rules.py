@@ -2,9 +2,10 @@
 
 # TODO: maybe move rules from here to their own transformation file
 
+
 from abc import ABC, abstractmethod
 
-from redbaron import RedBaron #, ForNode
+from redbaron import RedBaron
 
 from redbaron.nodes import *
 
@@ -114,6 +115,6 @@ class ElevateAssignment(Rule):
         if last is None:
             first.insert_before(p)
         else:
-            last.insert_after(p)
+            last .insert_after (p)
             
         parent.remove(node)

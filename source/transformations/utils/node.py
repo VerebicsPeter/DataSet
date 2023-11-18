@@ -4,29 +4,29 @@
 # TODO: write test cases for utility functions
 
 
-import redbaron as rb
+from redbaron.nodes import *
 
 
 def __non_formatting_node(node) -> bool:
-    return not isinstance(node, (rb.EndlNode, rb.SpaceNode, rb.CommentNode))
+    return not isinstance(node, (EndlNode, SpaceNode, CommentNode))
 
 
 def __child_count(node) -> int:
     # return 0 on leaf
     if isinstance(node.value, str): return 0
     # return 1 on single child
-    if not isinstance(node.value, (rb.NodeList, rb.ProxyList)): return 1
+    if not isinstance(node.value, NodeList): return 1
     # return the length of the filtered proxy list
     return len([x for x in node.value if __non_formatting_node(x)])
 
 
-def __child_count_recursive(node, type: str) -> int:
-    if isinstance(node.value, str): return 0  # return 0 on leaf
-    return len(node.value.find_all(type))
+def __child_count_recursive(node, child: str) -> int:
+    # child is the child's type
+    return len(node.find_all(child))
 
 
 def node_assigns(node, name: str) -> bool:
-    if isinstance(node, rb.AssignmentNode):
+    if isinstance(node, AssignmentNode):
         return node.target.name.value == name
     return False
 
@@ -35,15 +35,22 @@ def node_mentions(node, name: str) -> bool:
     return len(node.find_all('name', value=name)) > 0
 
 
-def node_is_empty_collection(node) -> bool:
-    return isinstance(node, (rb.ListNode, rb.SetNode, rb.DictNode)) and len(node.value) == 0
-
-
 def node_is_zero_numeric(node) -> bool:
-    return isinstance(node, (rb.IntNode, rb.FloatNode)) and node.value in {'0','0.0'}
+    return (
+        isinstance(node, (IntNode, FloatNode))
+        and
+        node.value in {'0','0.0'}
+    )
+
+def node_is_empty_collection(node) -> bool:
+    return (
+        isinstance(node, (ListNode, SetNode, DictNode))
+        and
+        len(node.value) == 0
+    )
 
 
-def match_node(p_node: rb.Node, p_pattern: dict) -> bool:
+def match_node(p_node: Node, p_pattern: dict) -> bool:
     """Recursive function to check if a node matches a pattern described in a recursive dictionary.
     
     Args:
@@ -86,7 +93,7 @@ def match_node(p_node: rb.Node, p_pattern: dict) -> bool:
         return True
 
     # return recursive call on single child
-    if not isinstance(p_node.value, (rb.NodeList, rb.ProxyList)):
+    if not isinstance(p_node.value, (NodeList)):
         node, pattern=p_node.value, p_pattern['nodes'][0]
         return match_node(node, pattern)
 
@@ -133,7 +140,8 @@ def get_module_name(ast, module_name: str) -> str | None:
         case None:
             return None
     match import_node.parent:
-        case rb.DottedAsNameNode():
+        case DottedAsNameNode():
             return import_node.parent.target
         case _:
             return module_name
+

@@ -1,6 +1,8 @@
 import os
 
+
 BUFFER_SIZE = 65536  # 64kb chunks
+
 
 def get_hash(path: str, hash) -> None:
     with open(path, 'rb') as f:
@@ -8,6 +10,7 @@ def get_hash(path: str, hash) -> None:
             data = f.read(BUFFER_SIZE)
             if not data: break
             hash.update(data)
+
 
 def get_python_scripts_at(path: str) -> list[dict]:
     result = []

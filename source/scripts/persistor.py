@@ -1,8 +1,8 @@
 import os
 
-from pymongo import MongoClient
-
 import utils
+
+from pymongo import MongoClient
 
 # Refactorings implemented:
 # - autopep (formatter), isort (import sorter), modernize (2to3 wrapper)
@@ -53,7 +53,7 @@ class ScriptRefactoringStore:
                 print("Something went wrong while updating the refactoring!\n", err)
 
 
-    # adds a refactoring result to an instance:
+    # Adds a refactoring result to an instance:
     # script_id should be the hash of the file
     # scripts   should be the list of filepaths to the refactored files
     @staticmethod

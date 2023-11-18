@@ -5,7 +5,7 @@
 
 from abc import ABC, abstractmethod
 
-from redbaron import (Node, ForNode, IntNode, FloatNode, ListNode, DictNode, NameNode)
+from redbaron import (Node, IntNode, FloatNode, ForNode, ListNode, DictNode, NameNode)
 
 from transformations.utils.node import *
 
@@ -24,29 +24,16 @@ class ForChange(ABC):
     @abstractmethod
     def get_change(self) -> tuple | None:
         pass
-    
-    @staticmethod
-    def _has_valid_init_value(node) -> bool:
-        match node.value:
-            case ListNode() as _node:
-                return node_is_empty_collection(_node)
-            case DictNode() as _node:
-                return node_is_empty_collection(_node)
-            case IntNode()  as _node:
-                return node_is_zero_numeric(_node)
-            case FloatNode() as _node:
-                return node_is_zero_numeric(_node)
-            case _: return False
 
-    def _get_main_operation(self, ctype: str) -> Node | None:
+    def _get_main_operation(self, child_type: str) -> Node | None:
         operation_node = None
         match self.test:
             case None:
-                operation_node = self.for_node.value.find(ctype)
+                operation_node = self.for_node.value.find(child_type)
             case Node() as _node:
                 if not node_mentions(_node, self.iterator.value):
                     return None
-                operation_node = self.if_node.value.find(ctype)
+                operation_node = self.if_node.value.find(child_type)
         return  operation_node
     
     def _get_init_assignment(self, name: str) -> Node | None:
@@ -71,6 +58,19 @@ class ForChange(ABC):
             if  last_mention_between is not None: return None
         
         return last_assign
+
+    @staticmethod
+    def _has_valid_init_value(node) -> bool:
+        match node.value:
+            case ListNode() as _node:
+                return node_is_empty_collection(_node)
+            case DictNode() as _node:
+                return node_is_empty_collection(_node)
+            case IntNode()  as _node:
+                return node_is_zero_numeric(_node)
+            case FloatNode() as _node:
+                return node_is_zero_numeric(_node)
+            case _: return False
 
 
 class ForToListComprehensionChange(ForChange):
