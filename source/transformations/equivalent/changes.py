@@ -2,7 +2,6 @@
 
 # TODO: define function to decide if a node is before another
 
-
 from abc import ABC, abstractmethod
 
 from redbaron import (Node, IntNode, FloatNode, ForNode, ListNode, DictNode, NameNode)
@@ -19,7 +18,7 @@ class ForChange(ABC):
         self.iterator = node.iterator
         self.target   = node.target
         self.if_node  = node.value.find('if')
-        self.test     = self.if_node.test if self.if_node is not None else None
+        self.test     = self.if_node.test if self.if_node else None
     
     @abstractmethod
     def get_change(self) -> tuple | None:
@@ -44,7 +43,7 @@ class ForChange(ABC):
             case None:
                 return None
             case Node() as _node:
-                if last_mention is not _node:
+                if _node is not last_mention:
                     return None
                 if not ForChange._has_valid_init_value(_node):
                     return None
@@ -55,7 +54,7 @@ class ForChange(ABC):
             last_mention_between = get_last_node_between(
                 last_mention, self.for_node, self.target.value, node_mentions
             )
-            if  last_mention_between is not None: return None
+            if  last_mention_between: return None
         
         return last_assign
 
@@ -80,7 +79,7 @@ class ForToListComprehensionChange(ForChange):
     
     def get_change(self) -> tuple | None:
         atomtrailers = self._get_main_operation('atomtrailers')
-        if atomtrailers is None: return None
+        if not atomtrailers: return None
         
         arg = atomtrailers.value.find('call').find('call_argument')
         match arg:
@@ -103,10 +102,10 @@ class ForToDictComprehensionChange(ForChange):
     
     def __init__(self, node: ForNode) -> None:
         super().__init__(node)
-        
+    
     def get_change(self) -> tuple | None:
         assignment = self._get_main_operation('assignment')
-        if assignment is None: return None
+        if not assignment: return None
 
         key = assignment.target.find('getitem').value
         match key:
@@ -116,7 +115,7 @@ class ForToDictComprehensionChange(ForChange):
         
         dict_name = assignment.target.find('name').value
         init_node = self._get_init_assignment(dict_name)
-        if init_node is None: return None
+        if not init_node: return None
         
         result  = f'{key} : {assignment.value} for {self.iterator} in {self.target}'
 
@@ -140,9 +139,9 @@ class ForToNumpySumChange(ForChange):
             case Node() as _node:
                 if _node.value != self.iterator.value: return None
         
-        sum_name  = assignment.target.value
+        sum_name = assignment.target.value
         init_node = self._get_init_assignment(sum_name)
-        if init_node is None: return None
+        if not init_node: return None
         
         result = f"{self.numpy}.sum({self.target})"
         return (init_node, result)

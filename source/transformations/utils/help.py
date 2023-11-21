@@ -1,6 +1,5 @@
 # Script to muck about with ast and redbaron
 
-
 import redbaron as rb
 
 

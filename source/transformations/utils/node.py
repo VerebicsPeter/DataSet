@@ -3,7 +3,6 @@
 # TODO: typing
 # TODO: write test cases for utility functions
 
-
 from redbaron.base_nodes import ProxyList
 
 from redbaron.nodes import *

@@ -2,7 +2,6 @@
 
 # TODO: maybe move rules from here to their own transformation file
 
-
 from abc import ABC, abstractmethod
 
 from redbaron import RedBaron
@@ -75,7 +74,8 @@ class ForToNumpySum(Rule):
 
     def match(self, node: ForNode) -> bool:
         return (
-            self.numpy is not None and
+            self.numpy is not None
+            and
             match_node(node, for_to_numpy_sum)
         )
 
@@ -86,7 +86,7 @@ class ForToNumpySum(Rule):
 
 class ElevateAssignment(Rule):
     
-    def match(self, node: AssignmentNode):
+    def match(self, node: AssignmentNode) -> bool:
         return (
             node.parent is not None
             and 
@@ -96,7 +96,7 @@ class ElevateAssignment(Rule):
         )
     
     # TODO: FORD. PROG. algoritmus maybe
-    def change(self, node: AssignmentNode):
+    def change(self, node: AssignmentNode) -> None:
         parent = node.parent
         
         names = [x.value for x in node.value.find_all('name')]
@@ -116,5 +116,5 @@ class ElevateAssignment(Rule):
             first.insert_before(p)
         else:
             last .insert_after (p)
-            
+          
         parent.remove(node)

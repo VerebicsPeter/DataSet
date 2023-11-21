@@ -1,9 +1,8 @@
 # Tests for equivalent transformations on for nodes
 
-
 from redbaron import RedBaron
 
-from transformations.equivalent.tForNode import ForNodeTransformation
+from transformations.equivalent.tNodeSpecific import ForNodeTransformation
 
 from transformations.equivalent.rules import (
     ForToListComprehension,
@@ -72,13 +71,29 @@ for num in l:
 """
 
 
+def do_transformation(t: ForNodeTransformation):
+    # print source lines before
+    print(t.ast)
+    print('-'*150)
+    
+    t.transform_nodes()
+
+    # print source lines after
+    print(t.ast)
+    print('-'*150)
+    
+    # this is the dump of the changed source code
+    changed = t.ast.dumps()
+    print(changed)
+
+
 def test_for_to_list():
     red = RedBaron(source_for_to_list)
     transformation = ForNodeTransformation(
         ast=red,
         rule=ForToListComprehension()
     )
-    transformation.transform_nodes()
+    do_transformation(transformation)
 
 
 def test_for_to_list_if():
@@ -87,7 +102,7 @@ def test_for_to_list_if():
         ast=red,
         rule=ForToListComprehension()
     )
-    transformation.transform_nodes()
+    do_transformation(transformation)
 
 
 def test_for_to_dict():
@@ -96,7 +111,7 @@ def test_for_to_dict():
         ast=red,
         rule=ForToDictComprehension()
     )
-    transformation.transform_nodes()
+    do_transformation(transformation)
 
 
 def test_for_to_dict_if():
@@ -105,7 +120,7 @@ def test_for_to_dict_if():
         ast=red,
         rule=ForToDictComprehension()
     )
-    transformation.transform_nodes()
+    do_transformation(transformation)
 
 
 def test_for_to_numpy_sum():
@@ -114,7 +129,7 @@ def test_for_to_numpy_sum():
         ast=red,
         rule=ForToNumpySum(red)
     )
-    transformation.transform_nodes()
+    do_transformation(transformation)
 
 
 if __name__ == "__main__":
