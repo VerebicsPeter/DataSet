@@ -2,21 +2,20 @@
 
 # TODO: insert pass
 # TODO: insert continue
-# TODO: remove comments
-# TODO: remove formatting
+# TODO: remove endlines
 
 from redbaron import RedBaron
+
+from redbaron.nodes import *
+
 
 class NonNodeSpecificTransformation():
     
     def __init__(self, ast: RedBaron) -> None:
         self.ast = ast
     
-    # TODO
-    def remove_comments(self) -> None:
-        print('not implemented yet')
+    def insert_pass(self) -> None:
+        pass   
     
-    # TODO
-    def remove_formatting(self) -> None:
-        print('not implemented yet')
-    
+    def insert_continue(self) -> None:
+        pass

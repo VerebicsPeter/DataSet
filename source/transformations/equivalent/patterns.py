@@ -4,7 +4,6 @@
 # 'target' is used to match the 'target' attribute on a node                   (optional)
 # 'nodes'  is used to match nodes that have NodeList value
 
-
 from redbaron.nodes import *
 
 
@@ -120,4 +119,3 @@ for_to_numpy_sum = {
     }]
   }]
 }
-

@@ -1,11 +1,18 @@
-# Ekvivalens python forráskódpárok generálása és adathalmaz összeállítása
+## Címek
 
-Egy python kódokat, mélyneuronhálókkal refaktoráló, kutatásban egy kódok ekvivalenciáját eldöntő hálóhoz, **ekvivalens kódpárokat** tartalmazó, adathalmazt készítek.
-Az adathalmaz minél változatosabb, egymással **garantáltan** ekvivalens kódpárokat kell tartalmazzon, és **százezres nagyságrendű** kell legyen.
-Az adathalmaz egy **többoszlopos** tábla, aminben az első oszlop az eredeti forráskódot tartalmazza, a további oszlopok a forráskód egy vagy több átalakítását.
-Az adathalmaz létrhozásához több eszközt alkalmazok, ezek két fő kategóriába sorolhatók:
+- Python kódok ekvivalenciáját vizsgáló neuronháló adathalmazának összeállítása
+- Ekvivalens python forráskód-párok generálása és adathalmaz összeállítása
+- Ekvivalens és inekvivalens forráskód-párok generálása pythonban
 
-- létező, python kódok ekvivalens módosítására alkalmas eszközök, (pl.: `isort`, `autopep`, `modernize`)
+## Témabejelentő
+
+Egy python kódokat, mély-neuronhálókkal refaktoráló, kutatásban egy kódok ekvivalenciáját eldöntő hálóhoz, ekvivalens és inekvivalens kódpárokat tartalmazó, adathalmazt készítek.
+
+Az adathalmaz minél változatosabb, egymással garantáltan ekvivalens vagy inekvivalens kódpárokat kell tartalmazzon és legalább százezres nagyságrendű kell legyen, így az adathalmaz két többoszlopos tábla (ekvivalens és inekvivalens kódokat tartalmazó táblák), amiben az első oszlop az eredeti forráskódot tartalmazza, a további oszlopok a forráskód egy vagy több átalakításának eredményét.
+
+Az adathalmaz létrehozásához több eszközt alkalmazok, ezek két fő kategóriába sorolhatók:
+
+- létező, python kódok ekvivalens módosítására alkalmas eszközök, (pl.: `isort`, `autopep`)
 
 - saját, python kódokat ekvivalensen átalakító program
 
@@ -16,4 +23,4 @@ A program célja, hogy minél több ekvivalens python átalakítást végezzen e
 
 - összetett átalakítások (python kódokon gyakran végzett átalakítások, például egy kollekciót változtató `for` ciklus *"comprehension"* kifejezéssé alakítása)
 
-Az átalakítások az absztrakt szintaxisfa módosításával működnek. Egy átalakítás egy adott csúcsra mintailleszt, ha a csúcs megfelel alkalmazza az átalakítást, megváltoztatva a absztrakt szintaxisfát. Ennek megvalósítására a `RedBaron` könyvtárat használom.
+Az átalakítások az **absztrakt szintaxisfa** módosításával működnek. Egy átalakítás egy adott absztrakt szintaxisfa beli csúcsra mintailleszt, ha a csúcs megfelel alkalmazza az átalakítást, megváltoztatva a absztrakt szintaxisfát. Ennek megvalósítására a `RedBaron` python könyvtárat használom, ami lehetőséget ad absztrakt szintaxisfa szintű lekérdezések és módosítások írására.

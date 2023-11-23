@@ -17,7 +17,7 @@ class NodeTransformation(ABC):
 
 
     def transform_nodes(self) -> None:
-        # query
+        # match
         nodes = self.ast.find_all(self.node_type())
         # transform matched query results
         for node in nodes:
@@ -61,7 +61,5 @@ class ForNodeTransformation(NodeTransformation):
         if not result: return None
         # apply change
         result[0].value = result[1]
-        # unlink the for node from ast
         parent = node.parent
         parent.remove(node)
-
