@@ -7,7 +7,7 @@
 - changing the signature of a method/function (adding and removing parameters)
 - inline a method/function (replace calls with definition)
 - introducing constants
-- encapsulation field (introducing getters and setters for attributes)
+- introducing getters and setters for attributes
 - promoting local variable to funtion parameters
 - extracting superclass/interface from existing classes
 - sorting imports

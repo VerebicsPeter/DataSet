@@ -4,29 +4,13 @@
 
 from abc import ABC, abstractmethod
 
-from redbaron import RedBaron
+from ast import AST
 
-from redbaron.nodes import *
-
-from .patterns import (
-    for_to_list_comprehension,
-    for_to_list_comprehension_if,
-    for_to_dict_comprehension,
-    for_to_dict_comprehension_if,
-    for_to_numpy_sum
-)
-
-from .changes import (
-    ForToListComprehensionChange,
-    ForToDictComprehensionChange,
-    ForToNumpySumChange
-)
-
-from ..utils.node import *
+import ast
 
 
 class Rule(ABC):
-    """ Abstract base class for transformation rules, such as `ForToListComprehension`, `ForToDictComprehension`
+    """ Abstract base class for transformation rules, such as `ForToListComprehension`, `ForToDictComprehension` ...
     """
     
     @abstractmethod
@@ -40,81 +24,88 @@ class Rule(ABC):
 
 class ForToListComprehension(Rule):
     
-    def match(self, node: ForNode) -> bool:
-        return (
-            match_node(node, for_to_list_comprehension)
-            or
-            match_node(node, for_to_list_comprehension_if)
-        )
+    def match(self, node: AST) -> bool:
+        """Returns whether `node` matches the pattern.
+        """
+        match node:
+            case(
+                ast.For(
+                    target=ast.Name(),
+                    body=[
+                        ast.Expr(
+                        value=ast.Call(
+                            func=ast.Attribute(
+                                value=ast.Name(),
+                                attr='append',
+                                ctx=ast.Load()),
+                            args=_))]
+            ) | ast.For(
+                    target=ast.Name(),
+                    body=[
+                        ast.If(
+                        test=_,
+                        body=[
+                            ast.Expr(
+                            value=ast.Call(
+                                func=ast.Attribute(
+                                    value=ast.Name(),
+                                    attr='append',
+                                    ctx=ast.Load()),
+                                args=_))
+                        ],orelse=[])]
+            )):
+                return True
+            case _:
+                return False
     
-    def change(self, node: ForNode) -> tuple | None:
-        change = ForToListComprehensionChange(node)
-        return change.get_change()
+    def change(self, node: AST) -> dict | None:
+        """Returns the change if it is possible, else returns `None`.
+        """
+        if self.match(node):
+            target, iter = node.target, node.iter
+            
+            ifs = []
+            body = node.body[0]
+            if isinstance(body, ast.If):
+                ifs = [body.test]
+                body = body.body[0]
+            
+            args = body.value.args
+            name = body.value.func.value
+            
+            # create the resulting list comprehension
+            result = ast.ListComp(
+                generators=[
+                    ast.comprehension(target=target,iter=iter,ifs=ifs,is_async=0)
+                ],
+                elt=args[0] #this is correct because append only takes one argument
+            )
+            
+            return {"id": name.id, "check": self.check, "result": result}
+    
+    def check(self, node: AST, _id: str) -> bool:
+        """Returns whether `node` assigns an empty list to a name-node with id of `_id`.
+        """
+        match node:
+            case ast.Assign(
+                targets=[ast.Name(id,      ctx=ast.Store())],
+                value  = ast.List(elts=[], ctx=ast.Load())):
+                return id == _id
+        return False
 
 
 class ForToDictComprehension(Rule):
     
-    def match(self, node: ForNode) -> bool:
-        return (
-            match_node(node, for_to_dict_comprehension)
-            or
-            match_node(node, for_to_dict_comprehension_if)
-        )
+    def match(self, node) -> bool:
+        pass
     
-    def change(self, node: ForNode) -> tuple | None:
-        change = ForToDictComprehensionChange(node)
-        return change.get_change()
-
+    def change(self, node) -> tuple | None:
+        pass
 
 class ForToNumpySum(Rule):
-    
-    def __init__(self, ast: RedBaron) -> None:
-        self.ast   = ast
-        self.numpy = get_module_name(ast, 'numpy')
 
-    def match(self, node: ForNode) -> bool:
-        return (
-            self.numpy is not None
-            and
-            match_node(node, for_to_numpy_sum)
-        )
+    def match(self) -> bool:
+        pass
 
-    def change(self, node: ForNode) -> tuple | None:
-        change = ForToNumpySumChange(node, self.numpy)
-        return change.get_change()
-
-
-class ElevateAssignment(Rule):
-    
-    def match(self, node: AssignmentNode) -> bool:
-        return (
-            node.parent is not None
-            and 
-            len(node.parent)
-            and
-            node.index_on_parent != 0
-        )
-    
-    # TODO: FORD. PROG. algoritmus maybe
-    def change(self, node: AssignmentNode) -> None:
-        parent = node.parent
-        
-        names = [x.value for x in node.value.find_all('name')]
-
-        first, last = parent.filtered()[0], None
-
-        i = node.index_on_parent
-        
-        if i is not None:
-            for x in node.parent[0: i]:
-                if any(node_mentions(x, name) for name in names):
-                    last = x
-        
-        p = node.dumps()
-        
-        if last is None:
-            first.insert_before(p)
-        else:
-            last .insert_after (p)
-          
-        parent.remove(node)
+    def change(self, node) -> tuple | None:
+        pass
