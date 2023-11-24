@@ -1,5 +1,7 @@
 # Tests for equivalent transformations on for nodes
 
+# TODO: assertions
+
 import ast
 
 from transformations.equivalent.t_complex import ForNodeTransformation
@@ -57,7 +59,7 @@ for num in l:
 
 def print_result(t: ForNodeTransformation):
     print()
-    print(ast.unparse(t.ast))
+    print(t.get_source())
     print()
 
 def test_for_to_list():
@@ -75,10 +77,18 @@ def test_for_to_list_if():
     print_result(t)
 
 def test_for_to_dict():
-    pass
+    print(source_for_to_dict)
+    root = ast.parse(source_for_to_dict)
+    t = ForNodeTransformation(ast=root)
+    t.transform_nodes(ForTransformer(ForToDictComprehension()))
+    print_result(t)
 
 def test_for_to_dict_if():
-    pass
+    print(source_for_to_dict_if)
+    root = ast.parse(source_for_to_dict_if)
+    t = ForNodeTransformation(ast=root)
+    t.transform_nodes(ForTransformer(ForToDictComprehension()))
+    print_result(t)
 
 def test_for_to_numpy_sum():
     pass
@@ -95,3 +105,15 @@ if __name__ == "__main__":
     print('\nTesting for to list comprehension with if:\n')
     print('#'*150)
     test_for_to_list_if()
+    
+    
+    print('#'*150)
+    print('\nTesting for to dict comprehension:\n')    
+    print('#'*150)
+    test_for_to_dict()
+    
+    
+    print('#'*150)
+    print('\nTesting for to dict comprehension if:\n')    
+    print('#'*150)
+    test_for_to_dict_if()

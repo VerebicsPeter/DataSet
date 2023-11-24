@@ -4,7 +4,7 @@
 
 from abc import ABC, abstractmethod
 
-from ast import AST
+from ast import AST, expr, stmt
 
 import ast
 
@@ -15,22 +15,45 @@ class Rule(ABC):
     
     @abstractmethod
     def match(self, *args, **kwargs) -> bool:
+        """Returns whether `node` matches pattern.
+        """
         pass
     
     @abstractmethod
     def change(self, *args, **kwargs) -> object | None:
+        """Returns the change object if possible, else returns `None`.
+        """
+        pass
+    
+    
+class ForRule(Rule):
+
+    @abstractmethod
+    def match(self, node: AST) -> bool:
         pass
 
+    def change(self, node: AST) -> dict | None:
+        if self.match(node):
+            target, iter = node.target, node.iter
+            ifs = []
+            body = node.body[0]
+            if isinstance(body, ast.If):
+                ifs = [body.test]
+                body = body.body[0]
+            change = self.get_change(target, iter, ifs, body)
+            if change: return change
+    
+    @abstractmethod
+    def get_change(self, target: expr, iter: expr, ifs: list[expr], body: stmt)-> dict | None:
+        pass
 
-class ForToListComprehension(Rule):
+class ForToListComprehension(ForRule):
     
     def match(self, node: AST) -> bool:
-        """Returns whether `node` matches the pattern.
-        """
         match node:
             case(
                 ast.For(
-                    target=ast.Name(),
+                    target=ast.Name(), iter=_,
                     body=[
                         ast.Expr(
                         value=ast.Call(
@@ -38,9 +61,11 @@ class ForToListComprehension(Rule):
                                 value=ast.Name(),
                                 attr='append',
                                 ctx=ast.Load()),
-                            args=_))]
-            ) | ast.For(
-                    target=ast.Name(),
+                            args=_))
+                    ],
+                    orelse=[])
+            |   ast.For(
+                    target=ast.Name(), iter=_,
                     body=[
                         ast.If(
                         test=_,
@@ -52,39 +77,31 @@ class ForToListComprehension(Rule):
                                     attr='append',
                                     ctx=ast.Load()),
                                 args=_))
-                        ],orelse=[])]
-            )):
+                        ],
+                        orelse=[])
+                    ],
+                    orelse=[])
+            ):
                 return True
             case _:
                 return False
     
-    def change(self, node: AST) -> dict | None:
-        """Returns the change if it is possible, else returns `None`.
-        """
-        if self.match(node):
-            target, iter = node.target, node.iter
-            
-            ifs = []
-            body = node.body[0]
-            if isinstance(body, ast.If):
-                ifs = [body.test]
-                body = body.body[0]
-            
-            args = body.value.args
-            name = body.value.func.value
-            
-            # create the resulting list comprehension
-            result = ast.ListComp(
-                generators=[
-                    ast.comprehension(target=target,iter=iter,ifs=ifs,is_async=0)
-                ],
-                elt=args[0] #this is correct because append only takes one argument
-            )
-            
-            return {"id": name.id, "check": self.check, "result": result}
+    def get_change(self, target: expr, iter: expr, ifs: list[expr], body: stmt) -> dict | None:
+        args = body.value.args
+        name = body.value.func.value
+        
+        # create the resulting list comprehension
+        result = ast.ListComp(
+            generators=[
+                ast.comprehension(target=target,iter=iter,ifs=ifs,is_async=0)
+            ],
+            elt=args[0] #this is correct because append only takes one argument
+        )
+        
+        return {"id": name.id, "check": self.check, "result": result}
     
     def check(self, node: AST, _id: str) -> bool:
-        """Returns whether `node` assigns an empty list to a name-node with id of `_id`.
+        """Returns whether `node` assigns an empty list to a id of `_id`.
         """
         match node:
             case ast.Assign(
@@ -94,17 +111,72 @@ class ForToListComprehension(Rule):
         return False
 
 
-class ForToDictComprehension(Rule):
+class ForToDictComprehension(ForRule):
     
-    def match(self, node) -> bool:
-        pass
+    def match(self, node: AST) -> bool:
+        match node:
+            case(
+                ast.For(
+                    target=ast.Name(ctx=ast.Store()), iter=_,
+                    body=[
+                        ast.Assign(
+                        targets=[
+                            ast.Subscript(
+                                value=ast.Name(ctx=ast.Load()), slice=_,
+                                ctx=ast.Store())],
+                        value=_)],
+                    orelse=[])
+            |   ast.For(
+                    target=ast.Name(ctx=ast.Store()), iter=_,
+                    body=[
+                        ast.If(
+                        test=_,
+                        body=[
+                            ast.Assign(
+                            targets=[
+                                ast.Subscript(
+                                value=ast.Name(ctx=ast.Load()), slice=_,
+                                ctx=ast.Store())
+                            ],
+                            value=_)
+                        ],
+                        orelse=[])
+                    ],
+                    orelse=[])
+            ):
+                return True
+            case _:
+                return False
     
-    def change(self, node) -> tuple | None:
-        pass
+    def get_change(self,
+        target: expr, iter: expr, ifs: list[expr], body: stmt) -> dict | None:
+        slice = body.targets[0].slice
+        value = body.value
+        name  = body.targets[0].value
+        
+        result = ast.DictComp(
+            generators=[
+                ast.comprehension(target=target,iter=iter,ifs=ifs,is_async=0)
+            ],
+            key=slice, value=value    
+        )
+        
+        return {"id": name.id, "check": self.check, "result": result}
+    
+    def check(self, node: AST, _id: str) -> bool:
+        """Returns whether `node` assigns an empty dict to a id of `_id`.
+        """
+        match node:
+            case ast.Assign(
+                targets=[ast.Name(id, ctx=ast.Store())],
+                value  = ast.Dict(keys=[], values=[])):
+                return id == _id
+        return False
+
 
 class ForToNumpySum(Rule):
 
-    def match(self) -> bool:
+    def match(self, node) -> bool:
         pass
 
     def change(self, node) -> tuple | None:

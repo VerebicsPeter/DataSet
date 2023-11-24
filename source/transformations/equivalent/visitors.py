@@ -1,6 +1,6 @@
 import ast
 
-from ast import AST, Assign, NodeVisitor, NodeTransformer
+from ast import AST, NodeVisitor, NodeTransformer
 
 from .rules import Rule
 
@@ -11,33 +11,46 @@ class ForTransformer(NodeTransformer):
         self.rule = rule
         self.results = []
     
-    def visi_Assign(self, node: AST):    
+    
+    def has_unapplied(self) -> bool:
+        return self.results != []
+    
+    
+    def get_results(self, node: AST) -> None:
+        if self.has_unapplied(): self.results = []
+        self.visit(node)
+    
+    
+    def apply_results(self) -> None:
+        if self.has_unapplied():
+            for result in self.results:
+                print("Applying:",result)
+                result[0].value = result[1]
+            self.results = [result for result in self.results if result[0].value != result[1]]
+    
+    # Visitor for assignment nodes
+    def visit_Assign(self, node: AST):    
         return node
     
-    # Visit for nodes
+    # Visitor for for nodes
     def visit_For(self, node: AST):
         print('-'*150)
         print(ast.dump(node, indent=2))
         
+        if not hasattr(node,"parent") or not hasattr(node.parent,"body"):
+            return node
+                
         parent = node.parent.body
-        
-        if not parent: return node
         
         result = self.rule.change(node)
         # if the result matches, do semantic checks and apply it if possible
-        if result and parent:
+        if parent and result:
             i = parent.index(node)
             if i < 1: return node
             
-            id,check = result['id'], result['check']
+            id,check = result['id'],result['check']
             if check(parent[i-1], id):
                 self.results.append([parent[i-1], result['result']])
                 return None
-            
+
         return node
-    
-    def __assigns_empty_dict(self, node: AST, _id: str) -> bool:
-        pass
-    
-    def __assigns_empty_set(self, node: AST, _id: str) -> bool:
-        pass
