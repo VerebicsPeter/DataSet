@@ -52,5 +52,4 @@ class ForTransformer(NodeTransformer):
             if check(parent[i-1], id):
                 self.results.append([parent[i-1], result['result']])
                 return None
-
         return node

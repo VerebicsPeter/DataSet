@@ -43,3 +43,7 @@ coverage.xml
 
 # Rope
 .ropeproject
+
+# Generated image
+ast_graph.png
+ast_graph
