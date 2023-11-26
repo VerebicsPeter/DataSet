@@ -12,6 +12,8 @@ import uuid
 
 from graphviz import Digraph
 
+import transformations.transform_api as api
+
 
 class Menu(ttk.Frame):
     def __init__(self, parent):
@@ -60,7 +62,7 @@ class TreeView(ttk.Frame):
         self.treeview.column("#1", anchor="w", width=50)
 
         # Treeview headings
-        self.treeview.heading("#0", text="Node name", anchor="center")
+        self.treeview.heading("#0", text="Node type", anchor="center")
         self.treeview.heading("#1", text="Node value", anchor="center")
     
 
@@ -98,26 +100,23 @@ class SourceInputs(ttk.Frame):
     def __init__(self, parent):
         super().__init__(parent)
         
-        # checkbox state
-        self.image_checkbox_value = tk.BooleanVar()
-        
         # parse ast button
-        self.parse_ast_button = ttk.Button(self, text="Parse AST",
-            command=lambda:parent.parse_ast('source')
+        self.parse_ast_button = ttk.Button(self, text="Parse AST", width=20,
+            command=lambda:parent.ast_parse('source')
         )
         self.parse_ast_button.pack(pady=3)
         
+        # show ast button
+        self.show_ast_button = ttk.Button(self, text="Show AST", width=20,
+            command=parent.ast_show_source
+        )
+        self.show_ast_button.pack(pady=3)
+        
         # transform button
-        self.transform_button = ttk.Button(self, text="Transform",
-            command=parent.transform_ast
+        self.transform_button = ttk.Button(self, text="Transform", width=20,
+            command=parent.ast_transform
         )
         self.transform_button.pack(pady=3)
-        
-        # show image checkbox
-        self.image_checkbox = ttk.Checkbutton(self, text='Show image',
-            variable=self.image_checkbox_value, onvalue=True, offvalue=False
-        )
-        self.image_checkbox.pack()
 
 
 class ResultText(ttk.Frame):
@@ -137,20 +136,11 @@ class ResultInputs(ttk.Frame):
     def __init__(self, parent):
         super().__init__(parent)
         
-        # checkbox state
-        self.image_checkbox_value = tk.BooleanVar()
-        
         # parse ast button
-        self.parse_ast_button = ttk.Button(self, text="Parse AST",
-            command=lambda:parent.parse_ast('result')
+        self.show_ast_button = ttk.Button(self, text="Show AST", width=20,
+            command=parent.ast_show_result
         )
-        self.parse_ast_button.pack(pady=3)
-        
-        # show image checkbox
-        self.image_checkbox = ttk.Checkbutton(self, text='Show image',
-            variable=self.image_checkbox_value, onvalue=True, offvalue=False
-        )
-        self.image_checkbox.pack()
+        self.show_ast_button.pack()
 
 
 @dataclass
@@ -208,19 +198,41 @@ class App(tk.Tk):
         # run
         self.mainloop()
 
-    def parse_ast(self, target: str) -> None:
+
+    def ast_parse(self, target: str) -> None:
         if target not in {'source', 'result'}: return
-        text = self.views[target].text.textbox.get('1.0', tk.END)
-        AppState.parse_ast(text,target,
-            show_image=self.views[target].inputs.image_checkbox_value.get())
+        text: str = self.views[target].text.textbox.get('1.0', tk.END)
+        AppState.parse_ast(text,target)
         # update the tree view
         self.views[target].treeview.on_update()
 
-    def transform_ast(self) -> None:
+
+    def ast_transform(self) -> None:
         if AppState.source_ast:
-            print('`transform_ast` not implemented')
+            AppState.result_ast = api.for_to_comprehension(AppState.source_ast)
+            # maybe use a try except
+            unparsed = ast.unparse(AppState.result_ast)
+            self.result_text_widget.textbox['state'] = 'normal'
+            self.result_text_widget.textbox.delete(1.0,    tk.END)
+            self.result_text_widget.textbox.insert(tk.END, unparsed)
+            self.result_tree_widget.on_update()
+            self.result_text_widget.textbox['state'] = 'disabled'
         else:
             messagebox.showinfo(title="Transform", message="No AST provided.")
+
+
+    def ast_show_source(self) -> None:
+        if AppState.source_ast: 
+            DotGrapMaker.make(AppState.source_ast)
+        else:
+            messagebox.showinfo(title="Transform", message="No AST provided.")
+
+
+    def ast_show_result(self) -> None:
+        if AppState.result_ast: 
+            DotGrapMaker.make(AppState.result_ast)
+        else:
+            messagebox.showinfo(title="Transform", message="No AST generated.")
 
 
 class AppState:
@@ -231,13 +243,12 @@ class AppState:
     def parse_ast(cls, source: str, target: str, show_image: bool = False) -> None:
         if target not in {'source', 'result'}: return
         
-        try:    
+        try:
             parsed = ast.parse(source)
-        except Exception as exception:
-            print('Error while parsing.')
-            print(exception)
-            messagebox.showinfo(title="Transform", message=exception)
-            return 
+        except Exception as exeception:
+            print('Error while parsing:');print(exeception)
+            messagebox.showinfo(title="Transform", message=exeception)
+            return
         
         if target=='source':
             cls.source_ast = parsed
@@ -250,7 +261,6 @@ class AppState:
         print(ast.dump(parsed, indent=2))
         print('-'*150)
         
-        if show_image: DotGrapMaker.make(parsed)
     
     @classmethod
     def treeview_data(cls, target: str) -> list:
@@ -292,12 +302,11 @@ class DotGrapMaker:
 
     @staticmethod
     def make(root: ast.AST) -> None:
-        # create a Graphviz Digraph object
+        # create a Digraph object
         dot = Digraph()
-        # define a function to recursively add nodes to the Digraph
         def add_node(node, parent=None):
             node_name = str(node.__class__.__name__)
-            dot.node(str(id(node)), node_name)
+            dot.node(str(id(node)),node_name)
             if parent:
                 dot.edge(str(id(parent)),str(id(node)))
             for child in ast.iter_child_nodes(node):
@@ -309,6 +318,6 @@ class DotGrapMaker:
         dot.render('ast_graph', view=True)
 
 
-if __name__ == "__main__":    
+if __name__ == "__main__":
     # create app
     app = App()

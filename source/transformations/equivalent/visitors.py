@@ -28,6 +28,7 @@ class ForTransformer(NodeTransformer):
                 result[0].value = result[1]
             self.results = [result for result in self.results if result[0].value != result[1]]
     
+    # this if for testing purposes
     # Visitor for assignment nodes
     def visit_Assign(self, node: AST):    
         return node
@@ -43,7 +44,7 @@ class ForTransformer(NodeTransformer):
         parent = node.parent.body
         
         result = self.rule.change(node)
-        # if the result matches, do semantic checks and apply it if possible
+        # if the result matches, do semantic checks and store if possible
         if parent and result:
             i = parent.index(node)
             if i < 1: return node
