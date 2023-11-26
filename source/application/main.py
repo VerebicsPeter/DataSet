@@ -103,7 +103,7 @@ class SourceInputs(ttk.Frame):
         
         # parse ast button
         self.parse_ast_button = ttk.Button(self, text="Parse AST",
-            command=lambda : parent.parse_ast('source')
+            command=lambda:parent.parse_ast('source')
         )
         self.parse_ast_button.pack(pady=3)
         
@@ -142,7 +142,7 @@ class ResultInputs(ttk.Frame):
         
         # parse ast button
         self.parse_ast_button = ttk.Button(self, text="Parse AST",
-            command=lambda : parent.parse_ast('result')
+            command=lambda:parent.parse_ast('result')
         )
         self.parse_ast_button.pack(pady=3)
         
@@ -208,8 +208,7 @@ class App(tk.Tk):
         # run
         self.mainloop()
 
-
-    def parse_ast(self, target: str):
+    def parse_ast(self, target: str) -> None:
         if target not in {'source', 'result'}: return
         text = self.views[target].text.textbox.get('1.0', tk.END)
         AppState.parse_ast(text,target,
@@ -217,12 +216,11 @@ class App(tk.Tk):
         # update the tree view
         self.views[target].treeview.on_update()
 
-
-    def transform_ast(self):
-        if not AppState.source_ast:
-            messagebox.showinfo(title="Transform", message="No AST provided."); return
-        
-        print('`transform_ast` not implemented')
+    def transform_ast(self) -> None:
+        if AppState.source_ast:
+            print('`transform_ast` not implemented')
+        else:
+            messagebox.showinfo(title="Transform", message="No AST provided.")
 
 
 class AppState:
@@ -230,12 +228,16 @@ class AppState:
     result_ast = None
     
     @classmethod
-    def parse_ast(cls, source: str, target: str, show_image: bool = False):
+    def parse_ast(cls, source: str, target: str, show_image: bool = False) -> None:
         if target not in {'source', 'result'}: return
         
-        parsed = ast.parse(source)
-
-        if not parsed: print('Error while parsing.')
+        try:    
+            parsed = ast.parse(source)
+        except Exception as exception:
+            print('Error while parsing.')
+            print(exception)
+            messagebox.showinfo(title="Transform", message=exception)
+            return 
         
         if target=='source':
             cls.source_ast = parsed
@@ -258,24 +260,30 @@ class AppState:
         if target not in {'source', 'result'}: return data
         if target == 'source': root = cls.source_ast
         if target == 'result': root = cls.result_ast
-                
+        
         if not root: print("No AST provided."); return data
         
+        def node_text(node):
+            unparsed = ast.unparse(node)
+            if len(unparsed) < 30:
+                return unparsed.split('\n', 1)[0]
+            else:
+                return unparsed[:30].split('\n', 1)[0]+' ... '
+
         def add_node(node, parent=None):
             node_name = str(node.__class__.__name__)
-            node_value: str = ast.unparse(node)
-            node_short: str = node_value.split('\n', 1)[0] if len(node_value) < 30 else node_value[:30].split('\n', 1)[0]
             node.uuid = uuid.uuid4()
             if parent:
                 data.append((parent.uuid,
-                    node.uuid, node_name, (node_short,))
+                    node.uuid, node_name, (node_text(node),))
                 )
             else:
                 data.append(("",
-                    node.uuid, node_name, (node_short,))
+                    node.uuid, node_name, (node_text(node),))
                 )
             for child in ast.iter_child_nodes(node):
                 add_node(child, node)
+        
         add_node(root)
         return data
 
@@ -283,7 +291,7 @@ class AppState:
 class DotGrapMaker:
 
     @staticmethod
-    def make(root: ast.AST):
+    def make(root: ast.AST) -> None:
         # create a Graphviz Digraph object
         dot = Digraph()
         # define a function to recursively add nodes to the Digraph
@@ -304,4 +312,3 @@ class DotGrapMaker:
 if __name__ == "__main__":    
     # create app
     app = App()
-
