@@ -1,12 +1,15 @@
 # Transformations
 
+# TODO: factories for `NodeTransformation` derived classes
+
+
 from abc import ABC, abstractmethod
 
 import ast
 
 from ast import AST, NodeVisitor, NodeTransformer
 
-from .visitors import ForTransformer
+from .visitors import ForTransformer, IfTransformer
 
 
 class NodeTransformation(ABC):
@@ -23,19 +26,29 @@ class NodeTransformation(ABC):
     def transform_nodes(self, visitor: NodeVisitor | NodeTransformer) -> None:
         pass
 
-
     def get_source(self) -> str:
         return ast.unparse(self.ast)
 
 
-class ForNodeTransformation(NodeTransformation):
+class ForTransformation(NodeTransformation):
 
     def __init__(self, ast: AST) -> None:
         super().__init__(ast)
         self.add_parent_attribute()
 
     def transform_nodes(self, visitor: ForTransformer) -> None:
-        visitor.get_results(self.ast)
         print('-'*150)
-        visitor.apply_results()
+        visitor.transform_ast(self.ast)
         print('-'*150)
+
+
+class IfTransformation(NodeTransformation):
+
+    def __init__(self, ast: AST):
+        super().__init__(ast)
+
+    def transform_nodes(self, visitor: IfTransformer):
+        print('-'*150)
+        visitor.transform_ast(self.ast)
+        print('-'*150)
+

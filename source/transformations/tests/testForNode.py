@@ -4,14 +4,15 @@
 
 import ast
 
-from transformations.equivalent.t_complex import ForNodeTransformation
+from transformations.equivalent.t_complex import ForTransformation
 
 from transformations.equivalent.visitors import ForTransformer
 
 from transformations.equivalent.rules import (
     ForToListComprehension,
     ForToDictComprehension,
-    ForToNumpySum
+    ForToNumpySum,
+    InvertIfOrElse
 )
 
 source_for_to_list = """
@@ -57,7 +58,7 @@ for num in l:
     sum += num
 """
 
-def print_result(t: ForNodeTransformation):
+def print_result(t: ForTransformation):
     print()
     print(t.get_source())
     print()
@@ -65,28 +66,28 @@ def print_result(t: ForNodeTransformation):
 def test_for_to_list():
     print(source_for_to_list)
     root = ast.parse(source_for_to_list)
-    t = ForNodeTransformation(ast=root)
+    t = ForTransformation(ast=root)
     t.transform_nodes(ForTransformer(ForToListComprehension()))
     print_result(t)
 
 def test_for_to_list_if():
     print(source_for_to_list_if)
     root = ast.parse(source_for_to_list_if)
-    t = ForNodeTransformation(ast=root)
+    t = ForTransformation(ast=root)
     t.transform_nodes(ForTransformer(ForToListComprehension()))
     print_result(t)
 
 def test_for_to_dict():
     print(source_for_to_dict)
     root = ast.parse(source_for_to_dict)
-    t = ForNodeTransformation(ast=root)
+    t = ForTransformation(ast=root)
     t.transform_nodes(ForTransformer(ForToDictComprehension()))
     print_result(t)
 
 def test_for_to_dict_if():
     print(source_for_to_dict_if)
     root = ast.parse(source_for_to_dict_if)
-    t = ForNodeTransformation(ast=root)
+    t = ForTransformation(ast=root)
     t.transform_nodes(ForTransformer(ForToDictComprehension()))
     print_result(t)
 

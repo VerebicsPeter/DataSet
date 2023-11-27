@@ -209,14 +209,15 @@ class App(tk.Tk):
 
     def ast_transform(self) -> None:
         if AppState.source_ast:
-            AppState.result_ast = api.for_to_comprehension(AppState.source_ast)
+            # TODO: select for transformations
+            AppState.result_ast = api.invert_if_orelse(api.for_to_comprehension(AppState.source_ast))
             # maybe use a try except
             unparsed = ast.unparse(AppState.result_ast)
             self.result_text_widget.textbox['state'] = 'normal'
-            self.result_text_widget.textbox.delete(1.0,    tk.END)
+            self.result_text_widget.textbox.delete(1.0   ,   tk.END)
             self.result_text_widget.textbox.insert(tk.END, unparsed)
-            self.result_tree_widget.on_update()
             self.result_text_widget.textbox['state'] = 'disabled'
+            self.result_tree_widget.on_update()
         else:
             messagebox.showinfo(title="Transform", message="No AST provided.")
 

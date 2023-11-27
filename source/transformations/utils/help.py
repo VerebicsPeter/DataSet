@@ -3,8 +3,12 @@
 import ast
 
 source = """
-data = {}
-data2 = { i : i + 1 for i in l }
+if not (a and b):
+    x
+elif b:
+    y
+else:
+    z
 """
 
 root = ast.parse(source)

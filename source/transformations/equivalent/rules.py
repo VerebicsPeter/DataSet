@@ -24,8 +24,8 @@ class Rule(ABC):
         """Returns the change object if possible, else returns `None`.
         """
         pass
-    
-    
+
+
 class ForRule(Rule):
 
     @abstractmethod
@@ -44,8 +44,9 @@ class ForRule(Rule):
             if change: return change
     
     @abstractmethod
-    def get_change(self, target: expr, iter: expr, ifs: list[expr], body: stmt)-> dict | None:
+    def get_change(self, target: expr, iter: expr, ifs: list[expr], statement: stmt)-> dict | None:
         pass
+
 
 class ForToListComprehension(ForRule):
     
@@ -86,9 +87,9 @@ class ForToListComprehension(ForRule):
             case _:
                 return False
     
-    def get_change(self, target: expr, iter: expr, ifs: list[expr], body: stmt) -> dict | None:
-        args = body.value.args
-        name = body.value.func.value
+    def get_change(self, target: expr, iter: expr, ifs: list[expr], statement: stmt) -> dict | None:
+        args = statement.value.args
+        name = statement.value.func.value
         
         # create the resulting list comprehension
         result = ast.ListComp(
@@ -149,10 +150,10 @@ class ForToDictComprehension(ForRule):
                 return False
     
     def get_change(self,
-        target: expr, iter: expr, ifs: list[expr], body: stmt) -> dict | None:
-        slice = body.targets[0].slice
-        value = body.value
-        name  = body.targets[0].value
+        target: expr, iter: expr, ifs: list[expr], statement: stmt) -> dict | None:
+        slice = statement.targets[0].slice
+        value = statement.value
+        name  = statement.targets[0].value
         
         result = ast.DictComp(
             generators=[
@@ -169,7 +170,9 @@ class ForToDictComprehension(ForRule):
         match node:
             case ast.Assign(
                 targets=[ast.Name(id, ctx=ast.Store())],
-                value  = ast.Dict(keys=[], values=[])):
+                value = ast.Dict(
+                    keys=[], values=[]
+            )):
                 return id == _id
         return False
 
@@ -181,3 +184,37 @@ class ForToNumpySum(Rule):
 
     def change(self, node) -> tuple | None:
         pass
+
+
+class InvertIfOrElse(Rule):
+
+    def match(self, node) -> bool:
+        match node:
+            case ast.If(
+                test=_,
+                body=[*_],
+                orelse=[*_] as _orelse
+            ):
+                return len(_orelse) > 0
+            case _:
+                return False
+    
+    def change(self, node) -> object | None:
+        if not self.match(node): return None
+        
+        test = node.test
+        body = node.body
+        orelse = node.orelse
+        
+        result = ast.If(
+            body=orelse,
+            orelse=body,
+            test=ast.UnaryOp(
+                op=ast.Not(),
+                operand=test
+            )
+        )
+        
+        change = { "result": result }
+        
+        return change
