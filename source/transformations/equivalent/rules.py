@@ -24,9 +24,6 @@ class Rule(ABC):
         pass
 
 
-# CONTEXT-SENSITIVE RULES BELOW
-
-
 class ForRule(Rule):
 
     @abstractmethod
@@ -64,7 +61,7 @@ class ForToListComprehension(ForRule):
                                 attr='append',
                                 ctx=ast.Load()),
                             args=_))
-                    |
+                        |
                         ast.If(
                         test=_,
                         body=[
@@ -177,9 +174,6 @@ class ForToNumpySum(Rule):
         pass
 
 
-# CONTEXT-FREE RULES BELOW
-
-
 class InvertIfOrElse(Rule):
 
     def match(self, node) -> bool:
@@ -206,7 +200,7 @@ class InvertIfOrElse(Rule):
         return { "result": result }
 
 
-class EliminateDoubleNegation(Rule):
+class RemoveDoubleNegation(Rule):
     
     def match(self, node: AST) -> bool:
         match node:

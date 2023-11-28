@@ -210,7 +210,11 @@ class App(tk.Tk):
     def ast_transform(self) -> None:
         if AppState.source_ast:
             # TODO: select for transformations
-            AppState.result_ast = api.doulbe_negation(api.invert_if_orelse(api.for_to_comprehension(AppState.source_ast)))
+            chain = api.TransformationChain(AppState.source_ast)
+            (
+                chain.for_to_comprehension().invert_if_orelse()
+            )
+            AppState.result_ast = chain.ast
             # maybe use a try except
             unparsed = ast.unparse(AppState.result_ast)
             self.result_text_widget.textbox['state'] = 'normal'
