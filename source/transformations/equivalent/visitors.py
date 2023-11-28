@@ -2,12 +2,17 @@ import ast
 
 from ast import AST, NodeVisitor, NodeTransformer
 
+from typing import Any
+
 from .rules import (
     ForToListComprehension,
     ForToDictComprehension,
     ForToNumpySum,
     InvertIfOrElse,
+    EliminateDoubleNegation,
+    #DeMorgansLaw # TODO
 )
+
 
 # NOTE: 
 # if all transformers are to be refactored into `get_change` - `apply_change` pattern
@@ -101,4 +106,29 @@ class IfTransformer(NodeTransformer):
             # change the node
             return result["result"]
         # leave unchanged        
+        return node
+
+
+class LogicTransformer(NodeTransformer):
+    
+    def __init__(
+        self,
+        rule:
+            EliminateDoubleNegation
+    ):
+        self.rule = rule
+    
+    
+    def transform_ast(self, node: AST):
+        self.visit(node)
+    
+    
+    def visit_UnaryOp(self, node: AST) -> Any:
+        print('-'*150)
+        print(ast.dump(node, indent=2))
+        
+        result = self.rule.change(node)
+        
+        if result:
+            return result["result"]
         return node

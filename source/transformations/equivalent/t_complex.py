@@ -9,7 +9,7 @@ import ast
 
 from ast import AST, NodeVisitor, NodeTransformer
 
-from .visitors import ForTransformer, IfTransformer
+from .visitors import ForTransformer, IfTransformer, LogicTransformer
 
 
 class NodeTransformation(ABC):
@@ -52,3 +52,13 @@ class IfTransformation(NodeTransformation):
         visitor.transform_ast(self.ast)
         print('-'*150)
 
+
+class LogicTransformation(NodeTransformation):
+    
+    def __init__(self, ast: AST):
+        super().__init__(ast)
+    
+    def transform_nodes(self, visitor: LogicTransformer) -> None:
+        print('-'*150)
+        visitor.transform_ast(self.ast)
+        print('-'*150)

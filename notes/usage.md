@@ -1,4 +1,4 @@
-# Workflow (so far)
+# Usage (so far)
 
 1. Download github repos to `resources` folder
 2. Run the `crawler` script to **copy scripts** to `resources` folder with uuids

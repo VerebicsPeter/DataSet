@@ -1,7 +1,5 @@
 # Implementations of rules
 
-# TODO: maybe move rules from here to their own transformation file
-
 from abc import ABC, abstractmethod
 
 from ast import AST, expr, stmt
@@ -14,16 +12,19 @@ class Rule(ABC):
     """
     
     @abstractmethod
-    def match(self, *args, **kwargs) -> bool:
+    def match(self, node: AST, *args, **kwargs) -> bool:
         """Returns whether `node` matches pattern.
         """
         pass
     
     @abstractmethod
-    def change(self, *args, **kwargs) -> object | None:
+    def change(self, node: AST, *args, **kwargs) -> object | None:
         """Returns the change object if possible, else returns `None`.
         """
         pass
+
+
+# CONTEXT-SENSITIVE RULES BELOW
 
 
 class ForRule(Rule):
@@ -39,8 +40,8 @@ class ForRule(Rule):
             body = node.body[0]
             if isinstance(body, ast.If):
                 ifs = [body.test]
-                body = body.body[0]
-            change = self.get_change(target, iter, ifs, body)
+                statement: stmt = body.body[0]
+            change = self.get_change(target, iter, ifs, statement)
             if change: return change
     
     @abstractmethod
@@ -63,11 +64,7 @@ class ForToListComprehension(ForRule):
                                 attr='append',
                                 ctx=ast.Load()),
                             args=_))
-                    ],
-                    orelse=[])
-            |   ast.For(
-                    target=ast.Name(), iter=_,
-                    body=[
+                    |
                         ast.If(
                         test=_,
                         body=[
@@ -106,8 +103,8 @@ class ForToListComprehension(ForRule):
         """
         match node:
             case ast.Assign(
-                targets=[ast.Name(id,      ctx=ast.Store())],
-                value  = ast.List(elts=[], ctx=ast.Load())):
+                targets=[ast.Name(id, ctx=ast.Store())], value=ast.List(elts=[], ctx=ast.Load())
+            ):
                 return id == _id
         return False
 
@@ -125,11 +122,8 @@ class ForToDictComprehension(ForRule):
                             ast.Subscript(
                                 value=ast.Name(ctx=ast.Load()), slice=_,
                                 ctx=ast.Store())],
-                        value=_)],
-                    orelse=[])
-            |   ast.For(
-                    target=ast.Name(ctx=ast.Store()), iter=_,
-                    body=[
+                        value=_)
+                    |
                         ast.If(
                         test=_,
                         body=[
@@ -149,8 +143,7 @@ class ForToDictComprehension(ForRule):
             case _:
                 return False
     
-    def get_change(self,
-        target: expr, iter: expr, ifs: list[expr], statement: stmt) -> dict | None:
+    def get_change(self, target: expr, iter: expr, ifs: list[expr], statement: stmt) -> dict | None:
         slice = statement.targets[0].slice
         value = statement.value
         name  = statement.targets[0].value
@@ -169,10 +162,8 @@ class ForToDictComprehension(ForRule):
         """
         match node:
             case ast.Assign(
-                targets=[ast.Name(id, ctx=ast.Store())],
-                value = ast.Dict(
-                    keys=[], values=[]
-            )):
+                targets=[ast.Name(id, ctx=ast.Store())], value=ast.Dict(keys=[], values=[])
+            ):
                 return id == _id
         return False
 
@@ -186,20 +177,21 @@ class ForToNumpySum(Rule):
         pass
 
 
+# CONTEXT-FREE RULES BELOW
+
+
 class InvertIfOrElse(Rule):
 
     def match(self, node) -> bool:
         match node:
             case ast.If(
-                test=_,
-                body=[*_],
-                orelse=[*_] as _orelse
+                test=_, body=[*_], orelse=[*_] as _orelse
             ):
                 return len(_orelse) > 0
             case _:
                 return False
     
-    def change(self, node) -> object | None:
+    def change(self, node) -> dict | None:
         if not self.match(node): return None
         
         test = node.test
@@ -207,14 +199,27 @@ class InvertIfOrElse(Rule):
         orelse = node.orelse
         
         result = ast.If(
-            body=orelse,
-            orelse=body,
-            test=ast.UnaryOp(
-                op=ast.Not(),
-                operand=test
-            )
+            body=orelse, orelse=body,
+            test=ast.UnaryOp(op=ast.Not(), operand=test)
         )
         
-        change = { "result": result }
+        return { "result": result }
+
+
+class EliminateDoubleNegation(Rule):
+    
+    def match(self, node: AST) -> bool:
+        match node:
+            case ast.UnaryOp(
+                op=ast.Not(),operand=ast.UnaryOp(op=ast.Not(),operand= _ )
+            ):
+                return True
+            case _:
+                return False
+    
+    def change(self, node: AST) -> dict | None:
+        if not self.match(node): return None
         
-        return change
+        result = node.operand.operand
+        
+        return { "result": result }
