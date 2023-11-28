@@ -37,10 +37,10 @@ class ForRule(Rule):
         if self.match(node):
             target, iter = node.target, node.iter
             ifs = []
-            body = node.body[0]
-            if isinstance(body, ast.If):
-                ifs = [body.test]
-                statement: stmt = body.body[0]
+            statement = node.body[0]
+            if isinstance(statement, ast.If):
+                ifs = [statement.test]
+                statement: stmt = statement.body[0]
             change = self.get_change(target, iter, ifs, statement)
             if change: return change
     
@@ -116,14 +116,14 @@ class ForToDictComprehension(ForRule):
             case(
                 ast.For(
                     target=ast.Name(ctx=ast.Store()), iter=_,
-                    body=[
+                    body=[(
                         ast.Assign(
                         targets=[
                             ast.Subscript(
                                 value=ast.Name(ctx=ast.Load()), slice=_,
                                 ctx=ast.Store())],
                         value=_)
-                    |
+                        |
                         ast.If(
                         test=_,
                         body=[
@@ -136,7 +136,7 @@ class ForToDictComprehension(ForRule):
                             value=_)
                         ],
                         orelse=[])
-                    ],
+                    )],
                     orelse=[])
             ):
                 return True
