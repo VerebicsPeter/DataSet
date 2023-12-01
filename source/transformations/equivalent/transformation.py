@@ -1,8 +1,5 @@
 # Transformations
 
-# TODO: abstract factory for `NodeTransformation` derived classes
-
-
 from abc import ABC, abstractmethod
 
 import ast
@@ -16,9 +13,8 @@ class NodeTransformation(ABC):
         self.ast = ast
 
     def transform_nodes(self, visitor: NodeVisitor | NodeTransformer) -> None:
-        print('-'*150)
         visitor.transform_ast(self.ast)
-        print('-'*150)
-
+        
     def get_source(self) -> str:
+        ast.fix_missing_locations(self.ast)
         return ast.unparse(self.ast)

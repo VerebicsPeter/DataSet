@@ -1,24 +1,22 @@
 import ast
 
-from ast import AST, NodeVisitor, NodeTransformer
+from ast import AST, FunctionDef, NodeVisitor, NodeTransformer, fix_missing_locations
 
 from functools import wraps
 
 from .rules import (
     ForToListComprehension,
     ForToDictComprehension,
-    ForToNumpySum,
-    InvertIfOrElse,
-    RemoveDoubleNegation,
-    #DeMorgansLaw # TODO
+    ForToSumNumpy,
+    InvertIf,
+    ExtractFunctionDefGuard,
+    DoubleNegation,DeMorgan,
 )
 
-
-# NOTE: 
+# NOTE:
 # if all transformers are to be refactored into `get_change` - `apply_change` pattern
 # a separate `NodeVisitor` can be created to gather the nodes matched,
-# this changes the time complexity from n to 2*n
-
+# this changes the time complexity from n to 2*n for n nodes
 
 # wrapper function that adds parent attributes
 def context_parent(method):
@@ -38,7 +36,7 @@ class ForTransformer(NodeTransformer):
         rule:
             ForToListComprehension
         |   ForToDictComprehension
-        |   ForToNumpySum
+        |   ForToSumNumpy
         ):
         self.rule = rule
         self.results = []
@@ -65,7 +63,7 @@ class ForTransformer(NodeTransformer):
     
     # Visitor for for nodes
     def visit_For(self, node: AST):
-        print('-'*150)
+        print('-'*100)
         print(ast.dump(node, indent=2))
         
         if not hasattr(node,"parent") or not hasattr(node.parent,"body"):
@@ -94,8 +92,7 @@ class IfTransformer(NodeTransformer):
     
     def __init__(
         self,
-        rule:
-            InvertIfOrElse
+        rule: InvertIf
         ):
         self.rule = rule
     
@@ -105,7 +102,7 @@ class IfTransformer(NodeTransformer):
     
     # Visitor for if nodes
     def visit_If(self, node: AST):
-        print('-'*150)
+        print('-'*100)
         print(ast.dump(node, indent=2))
         
         result = self.rule.change(node)
@@ -115,12 +112,37 @@ class IfTransformer(NodeTransformer):
         return node
 
 
+class FunctionDefTransformer(NodeTransformer):
+    
+    def __init__(
+        self,
+        rule: ExtractFunctionDefGuard
+        ):
+        self.rule = rule
+
+    def transform_ast(self, node: AST):
+        self.visit(node)
+        # NOTE: IT'S VERY IMPORTANT TO FIX LOCATIONS OF GENERATED NODES
+        # (ExtractFunctionDefGuard rule inserts an if statement into the generated function def)
+        fix_missing_locations(node)
+    
+    # visit function definition
+    def visit_FunctionDef(self, node: AST):
+        print('-'*100)
+        print(ast.dump(node, indent=2))
+        
+        result = self.rule.change(node)
+        if result: return result["result"]
+        # leave unchanged
+        return node
+
+
 class LogicTransformer(NodeTransformer):
     
     def __init__(
         self,
         rule:
-            RemoveDoubleNegation
+            DoubleNegation | DeMorgan
         ):
         self.rule = rule
     
@@ -130,10 +152,11 @@ class LogicTransformer(NodeTransformer):
     
     # Visitor for unary operators
     def visit_UnaryOp(self, node: AST):
-        print('-'*150)
+        print('-'*100)
         print(ast.dump(node, indent=2))
         
         result = self.rule.change(node)
         
         if result: return result["result"]
+        # leave unchanged
         return node

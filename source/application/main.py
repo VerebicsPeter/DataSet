@@ -2,17 +2,19 @@ import ast
 
 from dataclasses import dataclass
 
+import keyword, re  # for syntaxt highlighting
+
 import tkinter as tk
 
 from tkinter import ttk, messagebox
 
-import sv_ttk
+import sv_ttk  # tkinter theme
 
-import uuid
+import uuid  # for generating generating treeview ids
 
-from graphviz import Digraph
+from graphviz import Digraph  # for rendering graphs
 
-import transformations.transform_api as api
+import transformations.transformation_api as api
 
 
 class Menu(ttk.Frame):
@@ -91,9 +93,14 @@ class SourceText(ttk.Frame):
         super().__init__(parent)
 
         self.textbox = tk.Text(self, height=self.winfo_height(), width=self.winfo_width(),
-            font=('consolas', 14)
+            font=('lucidatypewriter', 14)
         )
         self.textbox.pack(fill="both", expand=True)
+        self.textbox.tag_config("keyword", foreground="purple3")
+        self.textbox.bind("<KeyRelease>", self.on_update)
+        
+    def on_update(self, event):
+        highlight_syntax(self.textbox)
 
 
 class SourceInputs(ttk.Frame):
@@ -124,13 +131,17 @@ class ResultText(ttk.Frame):
         super().__init__(parent)
 
         self.textbox = tk.Text(self, height=self.winfo_height(), width=self.winfo_width(),
-            font=('consolas', 14)
+            font=('lucidatypewriter', 14)
         )
         self.textbox.config(
             state="disabled"
         )
         self.textbox.pack(fill="both", expand=True)
+        self.textbox.tag_config("keyword", foreground="purple3")
 
+    def on_update(self):
+        highlight_syntax(self.textbox)
+    
 
 class ResultInputs(ttk.Frame):
     def __init__(self, parent):
@@ -142,12 +153,23 @@ class ResultInputs(ttk.Frame):
         )
         self.show_ast_button.pack()
 
+# NOTE: this is slow
+def highlight_syntax(textbox: tk.Text):
+    text_content = textbox.get("1.0", "end-1c")
+    # pattern for keywords
+    keyword_pattern = r"\b(" + "|".join(keyword.kwlist) + r")\b"
+    # compiled regex
+    keyword_regex = re.compile(keyword_pattern)
+
+    textbox.tag_remove("keyword", "1.0", tk.END)
+    
+    for matched in keyword_regex.finditer(text_content):
+        start, end = f"1.0+{matched.start()}c", f"1.0+{matched.end()}c"
+        textbox.tag_add("keyword", start, end)
 
 @dataclass
 class TransformView():
-    text: SourceText | ResultText
-    inputs: SourceInputs | ResultInputs
-    treeview: TreeView
+    text: SourceText | ResultText; inputs: SourceInputs | ResultInputs; treeview: TreeView
 
 
 class App(tk.Tk):
@@ -202,6 +224,7 @@ class App(tk.Tk):
     def ast_parse(self, target: str) -> None:
         if target not in {'source', 'result'}: return
         text: str = self.views[target].text.textbox.get('1.0', tk.END)
+        # parse new ast in the state object
         AppState.parse_ast(text,target)
         # update the tree view
         self.views[target].treeview.on_update()
@@ -212,7 +235,11 @@ class App(tk.Tk):
             # TODO: select for transformations
             chain = api.TransformationChain(AppState.source_ast)
             (
-                chain.for_to_comprehension().invert_if_orelse()
+            chain
+            .apply_for_to_comprehension()
+            .apply_invert_def()
+            .apply_invert_if()
+            .apply_logic_rules()
             )
             AppState.result_ast = chain.ast
             # maybe use a try except
@@ -221,6 +248,8 @@ class App(tk.Tk):
             self.result_text_widget.textbox.delete(1.0   ,   tk.END)
             self.result_text_widget.textbox.insert(tk.END, unparsed)
             self.result_text_widget.textbox['state'] = 'disabled'
+            self.result_text_widget.on_update()
+            # update the tree view
             self.result_tree_widget.on_update()
         else:
             messagebox.showinfo(title="Transform", message="No AST provided.")
@@ -228,14 +257,14 @@ class App(tk.Tk):
 
     def ast_show_source(self) -> None:
         if AppState.source_ast: 
-            DotGrapMaker.make(AppState.source_ast)
+            DigraphMaker.make(AppState.source_ast)
         else:
             messagebox.showinfo(title="Transform", message="No AST provided.")
 
 
     def ast_show_result(self) -> None:
         if AppState.result_ast: 
-            DotGrapMaker.make(AppState.result_ast)
+            DigraphMaker.make(AppState.result_ast)
         else:
             messagebox.showinfo(title="Transform", message="No AST generated.")
 
@@ -250,9 +279,14 @@ class AppState:
         
         try:
             parsed = ast.parse(source)
-        except Exception as exeception:
-            print('Error while parsing:');print(exeception)
-            messagebox.showinfo(title="Transform", message=exeception)
+        except Exception as exception:
+            print('Error while parsing:')
+            print(exception)
+            match exception:
+                case SyntaxError():
+                    messagebox.showinfo(title="Syntax Error", message=f"Syntax error: {exception.msg} in line {exception.lineno}.")
+                case _:
+                    messagebox.showinfo(title="Parsing Error", message="Parsing failed.")
             return
         
         if target=='source':
@@ -260,11 +294,11 @@ class AppState:
         if target=='result':
             cls.result_ast = parsed
         
-        print('-'*150)
+        print('-'*100)
         print(parsed)
-        print('-'*150)
+        print('-'*100)
         print(ast.dump(parsed, indent=2))
-        print('-'*150)
+        print('-'*100)
         
     
     @classmethod
@@ -303,7 +337,7 @@ class AppState:
         return data
 
 
-class DotGrapMaker:
+class DigraphMaker:
 
     @staticmethod
     def make(root: ast.AST) -> None:

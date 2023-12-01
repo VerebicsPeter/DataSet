@@ -3,12 +3,7 @@
 import ast
 
 source = """
-if not (a and b):
-    x
-elif b:
-    y
-else:
-    z
+sum = 0.0
 """
 
 root = ast.parse(source)

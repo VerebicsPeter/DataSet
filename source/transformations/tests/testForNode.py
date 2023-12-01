@@ -4,14 +4,14 @@
 
 import ast
 
-from transformations.equivalent.t_complex import NodeTransformation
+from transformations.equivalent.transformation import NodeTransformation
 
 from transformations.equivalent.visitors import ForTransformer
 
 from transformations.equivalent.rules import (
     ForToListComprehension,
     ForToDictComprehension,
-    ForToNumpySum,
+    ForToSumNumpy,
 )
 
 source_for_to_list = """
@@ -97,25 +97,25 @@ def test_for_to_numpy_sum():
 
 if __name__ == "__main__":
     
-    print('#'*150)
+    print('#'*100)
     print('\nTesting for to list comprehension:\n')    
-    print('#'*150)
+    print('#'*100)
     test_for_to_list()
     
     
-    print('#'*150)
+    print('#'*100)
     print('\nTesting for to list comprehension with if:\n')
-    print('#'*150)
+    print('#'*100)
     test_for_to_list_if()
     
     
-    print('#'*150)
+    print('#'*100)
     print('\nTesting for to dict comprehension:\n')    
-    print('#'*150)
+    print('#'*100)
     test_for_to_dict()
     
     
-    print('#'*150)
+    print('#'*100)
     print('\nTesting for to dict comprehension if:\n')    
-    print('#'*150)
+    print('#'*100)
     test_for_to_dict_if()
