@@ -5,14 +5,14 @@ from transformations.equivalent.transformation import (
 )
 
 from transformations.equivalent.visitors import (
-    ForTransformer,IfTransformer,FunctionDefTransformer,
-    LogicTransformer
+    ForTransformer, IfTransformer, FunctionDefTransformer, LogicTransformer
 )
 
 from transformations.equivalent.rules import (
     # for rules
     ForToListComprehension,
     ForToDictComprehension,
+    ForToSetComprehension,
     ForToSum,
     # if rules
     InvertIf,
@@ -22,24 +22,35 @@ from transformations.equivalent.rules import (
     DoubleNegation,DeMorgan
 )
 
+
 class TransformationBuilder:
     
-    def __init__(self, initial_ast: AST) -> None:
-        self.ast =initial_ast
+    def __init__(self, initial_ast: AST = None) -> None:
         self.queue = []
-        self.transformation = NodeTransformation(initial_ast)
+        self.__ast = initial_ast
+    
+    def set_ast(self, initial_ast: AST) -> None:
+        self.__ast = initial_ast
+    
+    def get_ast(self) -> AST | None: return self.__ast
     
     def add(self, visitor: NodeVisitor):
         self.queue.append(visitor)
         return self
     
     def run(self):
+        if not self.__ast:
+            print("AST needed for running the transformation!")
+            return
+        
+        transformation = NodeTransformation(self.__ast)
+        
         while self.queue:
             visitor = self.queue.pop(0)
-            self.transformation.transform_nodes(visitor)
+            transformation.transform_nodes(visitor)
 
 
-class TransformationChain():
+class CopyTransformer():
 
     def __init__(self, ast: AST):
         self.ast = copy.deepcopy(ast)
@@ -48,8 +59,9 @@ class TransformationChain():
         (
             TransformationBuilder(self.ast)
             .add(ForTransformer(ForToListComprehension()))
-            .add(ForTransformer(ForToDictComprehension()))
-            .add(ForTransformer(ForToSum()))
+            #.add(ForTransformer(ForToDictComprehension()))
+            #.add(ForTransformer(ForToSetComprehension()))
+            #.add(ForTransformer(ForToSum()))
             .run()
         )
         return self

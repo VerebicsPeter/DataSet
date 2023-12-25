@@ -1,22 +1,20 @@
+from _ast import Assign
 import ast
 
-from ast import AST, FunctionDef, NodeVisitor, NodeTransformer, fix_missing_locations
+from ast import AST, NodeVisitor, NodeTransformer, fix_missing_locations
 
 from functools import wraps
 
 from .rules import (
     ForToListComprehension,
     ForToDictComprehension,
+    ForToSetComprehension,
+    ForToSum,
     ForToSumNumpy,
     InvertIf,
     ExtractFunctionDefGuard,
     DoubleNegation,DeMorgan,
 )
-
-# NOTE:
-# if all transformers are to be refactored into `get_change` - `apply_change` pattern
-# a separate `NodeVisitor` can be created to gather the nodes matched,
-# this changes the time complexity from n to 2*n for n nodes
 
 # wrapper function that adds parent attributes
 def context_parent(method):
@@ -32,67 +30,75 @@ def context_parent(method):
 class ForTransformer(NodeTransformer):
     
     def __init__(
-        self,
-        rule:
-            ForToListComprehension
-        |   ForToDictComprehension
-        |   ForToSumNumpy
+        self,rule:
+          ForToListComprehension
+        | ForToDictComprehension
+        | ForToSetComprehension
+        | ForToSum
+        | ForToSumNumpy
         ):
         self.rule = rule
+        # init starting node to None
+        self._start_node = None
+        # init results
         self.results = []
+        self.got_results = False
     
     # Transform the AST in one call
     @context_parent
     def transform_ast(self, node: AST):
+        self._start_node = node
         self.__get_results(node)
         self.__set_results()
     
     # Get the results by calling visitor
     def __get_results(self, node: AST) -> None:
         self.results = []
+        self.got_results = False
         self.visit(node)
+        self.got_results = True
     
     # Apply the results after visiting
     def __set_results(self) -> None:
-        if self.results:
+        if self.got_results:
             for result in self.results:
-                print("Applying:",result)
-                result[0].value = result[1]
-            # remove the applied results
-            self.results = [result for result in self.results if result[0].value != result[1]]
+                print("Applying:", result)
+                result["target"].value = result["result"]
+            self.visit(self._start_node)
     
-    # Visitor for for nodes
-    def visit_For(self, node: AST):
-        print('-'*100)
-        print(ast.dump(node, indent=2))
-        
-        if not hasattr(node,"parent") or not hasattr(node.parent,"body"):
+    # Visitor for Assignment nodes
+    def visit_Assign(self, node: AST):
+        if self.got_results:
             return node
         
-        parent = node.parent.body
+        print('-'*100)
+        print(ast.dump(node, indent=2))
+        print()
         
         result = self.rule.change(node)
         # if the result matches, do semantic checks and store if possible
-        if parent and result:
-            i = parent.index(node)
-            # leave if the node is the first in a block
-            if i < 1:
-                return node
+        if result:
+            print("has change...")
+            self.results.append(result)
             
-            id,check = result['id'],result['check']
-            if check(parent[i-1], id):
-                self.results.append([parent[i-1], result['result']])
-                # remove the node from the tree
+        print('-'*100)
+        
+        return node
+    
+    # Visitor for For nodes
+    def visit_For(self, node: AST):
+        if self.got_results:
+            # remove the node if necessary
+            if node in [result["remove"] for result in self.results]:
                 return None
-        # leave if not matched or no parent set
+        # leave the node
         return node
 
 
 class IfTransformer(NodeTransformer):
     
     def __init__(
-        self,
-        rule: InvertIf
+        self,rule: InvertIf
         ):
         self.rule = rule
     
@@ -104,6 +110,7 @@ class IfTransformer(NodeTransformer):
     def visit_If(self, node: AST):
         print('-'*100)
         print(ast.dump(node, indent=2))
+        print()
         
         result = self.rule.change(node)
         
@@ -115,8 +122,7 @@ class IfTransformer(NodeTransformer):
 class FunctionDefTransformer(NodeTransformer):
     
     def __init__(
-        self,
-        rule: ExtractFunctionDefGuard
+        self,rule: ExtractFunctionDefGuard
         ):
         self.rule = rule
 
@@ -141,8 +147,7 @@ class LogicTransformer(NodeTransformer):
     
     def __init__(
         self,
-        rule:
-            DoubleNegation | DeMorgan
+        rule: DoubleNegation | DeMorgan
         ):
         self.rule = rule
     

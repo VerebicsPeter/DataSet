@@ -31,3 +31,7 @@
 ### Other
 
 - `try open(_)` to `with open(_)`
+
+## Implementation
+
+- Refactor for patterns to match the *init* node

@@ -238,7 +238,10 @@ class App(tk.Tk):
             chain = api.CopyTransformer(AppState.source_ast)
             (
             chain
-                .apply_for_to_comprehension().apply_invert_def().apply_invert_if().apply_logic_rules()
+                .apply_for_to_comprehension()
+                #.apply_invert_def()
+                #.apply_invert_if()
+                #.apply_logic_rules()
             )
             AppState.result_ast = chain.ast
             # maybe use a try except

@@ -101,21 +101,21 @@ if __name__ == "__main__":
     print('\nTesting for to list comprehension:\n')    
     print('#'*100)
     test_for_to_list()
-    exit(1)
     
     print('#'*100)
     print('\nTesting for to list comprehension with if:\n')
     print('#'*100)
     test_for_to_list_if()
-    
+
     
     print('#'*100)
     print('\nTesting for to dict comprehension:\n')    
     print('#'*100)
     test_for_to_dict()
     
-    
     print('#'*100)
     print('\nTesting for to dict comprehension if:\n')    
     print('#'*100)
     test_for_to_dict_if()
+
+    exit(0)
