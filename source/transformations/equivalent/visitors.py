@@ -48,15 +48,16 @@ class ForTransformer(NodeTransformer):
     @context_parent
     def transform_ast(self, node: AST):
         self._start_node = node
-        self.__get_results(node)
+        self.__get_results()
         self.__set_results()
     
     # Get the results by calling visitor
-    def __get_results(self, node: AST) -> None:
-        self.results = []
-        self.got_results = False
-        self.visit(node)
-        self.got_results = True
+    def __get_results(self) -> None:
+        if self._start_node:
+            self.results = []
+            self.got_results = False
+            self.visit(self._start_node)
+            self.got_results = True
     
     # Apply the results after visiting
     def __set_results(self) -> None:

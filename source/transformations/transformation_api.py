@@ -59,9 +59,9 @@ class CopyTransformer():
         (
             TransformationBuilder(self.ast)
             .add(ForTransformer(ForToListComprehension()))
-            #.add(ForTransformer(ForToDictComprehension()))
-            #.add(ForTransformer(ForToSetComprehension()))
-            #.add(ForTransformer(ForToSum()))
+            .add(ForTransformer(ForToDictComprehension()))
+            .add(ForTransformer(ForToSetComprehension()))
+            .add(ForTransformer(ForToSum()))
             .run()
         )
         return self

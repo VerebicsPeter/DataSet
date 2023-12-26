@@ -172,7 +172,7 @@ class ForToListComprehension(ForRule):
             "result": result,
         }
 
-# TODO: update
+
 class ForToDictComprehension(ForRule):
     
     def _match_Assign(self, node: AST) -> AST | None:
@@ -237,19 +237,31 @@ class ForToDictComprehension(ForRule):
             "result": result,
         }
 
-# TODO: update
+
 class ForToSetComprehension(ForRule):
 
-    def match(self, node: AST) -> bool:
+    def _match_Assign(self, node: AST) -> AST | None:
+        """Returns whether `node` assigns an empty set `_id`.
+        """
         match node:
-            case (
-            ast.For(
-                target=ast.Name(), iter=_,
+            case( 
+                ast.Assign(
+                    targets=[ast.Name(ctx=ast.Store())],
+                    value=ast.Call(func=ast.Name('set', ctx=ast.Load()), args=[], keywords=[]))
+                ):
+                return node
+        return None
+
+    def _match_For(self, node: AST, sum_name: str) -> AST | None:
+        match node:
+            case(
+                ast.For(
+                target=ast.Name(),
                 body=[
                     ast.Expr(
                     value=ast.Call(
                         func=ast.Attribute(
-                            value=ast.Name(),
+                            value=ast.Name(id=_ as _sum_name),
                             attr='add',
                             ctx=ast.Load()),
                         args=_))
@@ -260,7 +272,7 @@ class ForToSetComprehension(ForRule):
                         ast.Expr(
                         value=ast.Call(
                             func=ast.Attribute(
-                                value=ast.Name(),
+                                value=ast.Name(id=_ as _sum_name),
                                 attr='add',
                                 ctx=ast.Load()),
                             args=_))
@@ -268,84 +280,90 @@ class ForToSetComprehension(ForRule):
                     orelse=[])
                 ],
                 orelse=[])
-            ): return True
-        return False
+                ):
+                print(" sum name:",  sum_name)
+                print("_sum_name:", _sum_name)
+                return node if sum_name == _sum_name else None
+        return None
     
-    def get_change(self, target: expr, iter: expr, ifs: list[expr], statement: stmt) -> dict | None:
+    def _get_change(self, target: expr, iter: expr, ifs: list[expr], statement: stmt) -> dict | None:
+        if not self._Assign or not self._For: return None
+        # get values from statement
         args = statement.value.args
-        name = statement.value.func.value
-        # create the resulting list comprehension
+        # create the resulting set comprehension
         result = ast.SetComp(
-            elt=args[0], # this is correct because append only takes one argument
-            generators=[
-                ast.comprehension(target=target,iter=iter,ifs=ifs,is_async=0)
-            ]
+            elt=args[0],  # this is correct because add only takes one argument
+            generators=[ast.comprehension(target=target,iter=iter,ifs=ifs,is_async=0)]
         )
-        return {"id": name.id, "check": self.check, "result": result}
-    
-    def check(self, node: AST, _id: str) -> bool:
-        """Returns whether `node` assigns an empty set `_id`.
-        """
-        match node:
-            case ast.Assign(
-                targets=[ast.Name(id, ctx=ast.Store())],
-                value=ast.Call(func=ast.Name('set', ctx=ast.Load()), args=[], keywords=[])
-            ): return id == _id
-        return False
+        return {
+            "target": self._Assign,
+            "remove": self._For,
+            "result": result
+        }
 
-# TODO: update
+
 class ForToSum(ForRule):
     
-    def match(self, node: AST):
+    def _match_Assign(self, node: AST) -> AST | None:
+        """Returns whether `node` assigns the literal 0 or 0.0 to `_id`.
+        """
         match node:
-            case (
-            ast.For(
-                target=_, iter=_,
-                body=[(
+            case(
+                ast.Assign(
+                    targets=[ast.Name(ctx=ast.Store())],
+                    value=(ast.Constant(0) | ast.Constant(0.0)))
+                ):
+                return node
+        return None
+    
+    def _match_For(self, node: AST, sum_name: str) -> AST | None:
+        match node:
+            case(
+                ast.For(
+                target=_,
+                body=[
                     ast.AugAssign(
-                        target=ast.Name(ctx=ast.Store()),
-                        op=ast.Add(),value=_
-                    )
+                        target=ast.Name(id=_ as _sum_name),
+                        op=ast.Add(),
+                        value=_)
                     |
                     ast.If(
                     test=_,
                     body=[
                         ast.AugAssign(
-                            target=ast.Name(ctx=ast.Store()),
-                            op=ast.Add(),value=_
-                    )],
-                    orelse=[])                    
-                )],
+                            target=ast.Name(id=_ as _sum_name),
+                            op=ast.Add(),
+                            value=_)
+                    ],
+                    orelse=[])
+                ],
                 orelse=[])
-            ): return True
-        return False
+                ):
+                print(" sum name:",  sum_name)
+                print("_sum_name:", _sum_name)
+                return node if sum_name == _sum_name else None
+        return None
 
-    def get_change(self, target: expr, iter: expr, ifs: list[expr], statement: stmt) -> dict | None:
+    def _get_change(self, target: expr, iter: expr, ifs: list[expr], statement: stmt) -> dict | None:
+        if not self._Assign or not self._For: return None
+        # get values from statement
         inc = statement.value
-        name = statement.target
         # create resulting sum call
         result = ast.Call(
             func=ast.Name(id='sum', ctx=ast.Load()),
             args=[
                ast.GeneratorExp(
                     elt=inc,
-                    generators=[
-                        ast.comprehension(target=target,iter=iter,ifs=ifs,is_async=0)
-                    ]
+                    generators=[ast.comprehension(target=target,iter=iter,ifs=ifs,is_async=0)]
                 )],
             keywords=[]
         )
-        return { "id": name.id, "check": self.check, "result": result }
-    
-    def check(self, node: AST, _id: str) -> bool:
-        """Returns whether `node` assigns the literal 0 or 0.0 to `_id`.
-        """
-        match node:
-            case ast.Assign(
-                targets=[ast.Name(id, ctx=ast.Store())],
-                value=(ast.Constant(0) | ast.Constant(0.0))
-            ): return id == _id
-        return False
+        return {
+            "target": self._Assign,
+            "remove": self._For,
+            "result": result,
+        }
+
 
 # TODO: implement
 class ForToSumNumpy(ForRule):
