@@ -1,5 +1,3 @@
-# works inside source !!!
-
 import ast
 
 from dataclasses import dataclass
@@ -10,13 +8,13 @@ import tkinter as tk
 
 from tkinter import ttk, messagebox
 
-#import sv_ttk  # tkinter theme
+import sv_ttk  # tkinter theme
 
 import uuid  # for generating generating treeview ids
 
-#from graphviz import Digraph  # for rendering graphs
+from graphviz import Digraph  # for rendering graphs
 
-import transformations.transformation_api as api
+from transformations import transformation_api as api
 
 # NOTE: this is slow
 def highlight_syntax(textbox: tk.Text):
@@ -218,7 +216,7 @@ class App(tk.Tk):
             self.result_tree_widget
         )
         # set theme
-        #sv_ttk.set_theme("dark")
+        sv_ttk.set_theme("dark")
         # run
         self.mainloop()
 
@@ -352,7 +350,6 @@ class DigraphMaker:
 
     @staticmethod
     def make(root: ast.AST) -> None:
-        return
         # create a Digraph object
         dot = Digraph()
         def add_node(node, parent=None):
@@ -367,8 +364,3 @@ class DigraphMaker:
         # render the Digraph as a PNG file
         dot.format = 'png'
         dot.render('ast_graph', view=True)
-
-
-if __name__ == "__main__":
-    # create app
-    app = App()

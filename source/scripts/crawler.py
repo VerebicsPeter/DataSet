@@ -7,9 +7,9 @@ import utils
 # path to home directory
 HOME   = os.path.expanduser('~')
 # path to source folder containing repositories
-SOURCE = f"{HOME}/Documents/DataSet/resources/repos"
+SOURCE = f"{HOME}/Documents/DataSet/data/repos"
 # path to destination folder containing python scripts
-DEST   = f"{HOME}/Documents/DataSet/resources/scripts"
+DEST   = f"{HOME}/Documents/DataSet/data/scripts"
 
 scripts = utils.get_python_scripts_at(SOURCE)
 

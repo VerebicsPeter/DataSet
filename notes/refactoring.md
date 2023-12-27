@@ -13,7 +13,7 @@
 
 - IDE's built in tools
 - `Bowler`, `Rope`, maybe `Coala`
-- Python fixers like `2to3`, `modernize`, `futurize`
+- Python fixers like `modernize`
 - `PyUpgrade`
 - Code formatters like `autopep8` or `black`
 - Python IDE `PyCharm` (it supports auto refactoring)
@@ -24,4 +24,4 @@
 
 ## Inequivalent code
 
-- data for inequivalent code pairs may also be provided
+- data for non equivalent code pairs may also be provided

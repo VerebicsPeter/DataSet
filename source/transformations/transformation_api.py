@@ -1,6 +1,6 @@
 import copy
 
-from transformations.equivalent.transformation import (
+from transformations.transformation import (
     AST, NodeTransformation, NodeVisitor
 )
 

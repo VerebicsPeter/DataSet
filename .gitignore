@@ -2,7 +2,7 @@
 /.venv
 /.vscode
 /.idea
-/resources
+/data
 
 # Byte-compiled / optimized / DLL files
 **/__pycache__
@@ -44,6 +44,9 @@ coverage.xml
 # Rope
 .ropeproject
 
-# Generated image
+# Generated image and file
 ast_graph.png
 ast_graph
+
+# vscode workspaces
+*.code-workspace

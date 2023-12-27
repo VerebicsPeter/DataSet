@@ -1,16 +1,20 @@
 # Tests for equivalent transformations on for nodes
 
-# TODO: assertions
+# TODO: assertions, proper tests
+
+# (run with `python3 -m source.transformations.tests.testForNode`)
 
 import ast
 
-from transformations.equivalent.transformation import NodeTransformation
+from ..transformation import NodeTransformation
 
-from transformations.equivalent.visitors import ForTransformer
+from ..equivalent.visitors import ForTransformer
 
-from transformations.equivalent.rules import (
+from ..equivalent.rules import (
     ForToListComprehension,
     ForToDictComprehension,
+    ForToSetComprehension,
+    ForToSum,
     ForToSumNumpy,
 )
 
@@ -101,7 +105,6 @@ if __name__ == "__main__":
     print('\nTesting for to list comprehension:\n')    
     print('#'*100)
     test_for_to_list()
-    exit(1)
     
     print('#'*100)
     print('\nTesting for to list comprehension with if:\n')

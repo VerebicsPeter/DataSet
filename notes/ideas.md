@@ -1,6 +1,6 @@
 # Ideas
 
-## TODO
+## To-Do
 
 - read about contrastive learning and contra code
 
@@ -30,7 +30,7 @@
 
 ### Other
 
-- `try open(_)` to `with open(_)`
+- `try open(...)` to `with open(...)`
 
 ## Implementation
 

@@ -1,7 +1,13 @@
 # Usage
 
-Run `crawler.py` (in **scripts**) to copy all `.py` scripts from **resources/repos** to **resources/scripts**.
+## Initialize
 
-Run the `isort`, `autopep` or `modernize` shell scripts (in **refactorings**) to refactor the scripts in **resources/scripts**.
+- **crawler.py** - **copy** all **.py** scripts from `data/repos` to `data/scripts`.
 
-Run `persistor.py` to save all scripts to mongodb database.
+## Refactor
+
+- Run **isort**, **autopep** or **modernize** shell scripts inside `refactorings` to refactor the scripts inside `data/scripts`.
+
+## Persistance
+
+- **persistor.py** - **save** all **.py** scripts to mongodb database.
