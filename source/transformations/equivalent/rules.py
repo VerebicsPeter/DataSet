@@ -7,6 +7,8 @@ from ast import AST, expr, stmt
 
 import ast
 
+from ..utils.helpers import Node
+
 
 class Rule(ABC):
     """ Abstract base class for transformation rules
@@ -27,60 +29,48 @@ class Rule(ABC):
 
 class ForRule(Rule):
     """Reduces a linear-sum based for loop (Pattern) to a comprehensions (Result).
-        
-        Pattern:
-        ```
-        {sum} = {init}
-        for {target} in {iter}:
-            {{if stmt(<target>):}} add({sum}, exp({target}))
-        ```
-        
-        Result:
-        ```
-        {sum} = coll(exp({target}) for {target} in {iter} {if stmt({target})})
-        ```
     """
 
     def match(self, node: AST) -> bool:
         # reset the state
         self.__reset_state()
-        
-        p, i = None, None
+
         try:
             p = node.parent.body
             i = node.parent.body.index(node)
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"Error: {e}")  # TODO: logger
             return False
         
         if i >= len(p) - 1:  # Make sure that the node is not the last in the scope
             return False
 
-        print("assignment is not the last in scope...")
+        print("assignment is not the last in scope...")  # TODO: logger
 
         self._Assign = self._match_Assign(node)
         
         if not self._Assign:
             return False
         
-        print("assignment matched the pattern...")
+        print("assignment matched the pattern...")  # TODO: logger
         
         try:
-            self._sum = self._Assign.targets[0].id  # sum is the id of the target in the assignment
-            print("assignment to:",  self._sum)
-            print("trying to match:",   p[i+1])
+            self._sum = self._Assign.targets[0].id  # sum ("sum name") is the id of
+                                                    # the target in the assignment
+            print("assignment to:",  self._sum)  # TODO: logger
+            print("trying to match:", p[i+1])  # TODO: logger
             self._For = self._match_For(p[i+1], self._sum)
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"Error: {e}")  # TODO: logger
             return False
         
-        print("matched for node:", self._For)
+        print("matched for node:", self._For)  # TODO: logger
         
         return bool(self._For)
 
 
     def change(self, node: AST) -> dict | None:
-        print("trying to match...")
+        print("trying to match...")  # TODO: logger
         if self.match(node):
             target = self._For.target
             iter   = self._For.iter
@@ -150,10 +140,11 @@ class ForToListComprehension(ForRule):
                     ],
                     orelse=[])
                 ],
-                orelse=[])
+                orelse=[]) as _body
                 ):
-                print(" sum_name:",  sum_name)
-                print("_sum_name:", _sum_name)
+                if len(Node.all_names(_body, sum_name)) - 1: return None
+                print(" sum_name:",  sum_name)  # TODO: logger
+                print("_sum_name:", _sum_name)  # TODO: logger
                 return node if sum_name == _sum_name else None
         return None
     
@@ -212,12 +203,13 @@ class ForToDictComprehension(ForRule):
                         ],
                         value=_)
                     ],
-                    orelse=[])
+                    orelse=[]) as _body
                 ],
                 orelse=[])
                 ):
-                print(" sum_name:",  sum_name)
-                print("_sum_name:", _sum_name)
+                if len(Node.all_names(_body, sum_name)) - 1: return None
+                print(" sum_name:",  sum_name)  # TODO: logger
+                print("_sum_name:", _sum_name)  # TODO: logger
                 return node if sum_name == _sum_name else None
         return None
     
@@ -241,8 +233,7 @@ class ForToDictComprehension(ForRule):
 class ForToSetComprehension(ForRule):
 
     def _match_Assign(self, node: AST) -> AST | None:
-        """Returns whether `node` assigns an empty set `_id`.
-        """
+        """Returns whether `node` assigns an empty set"""
         match node:
             case( 
                 ast.Assign(
@@ -277,12 +268,13 @@ class ForToSetComprehension(ForRule):
                                 ctx=ast.Load()),
                             args=_))
                     ],
-                    orelse=[])
+                    orelse=[]) as _body
                 ],
                 orelse=[])
                 ):
-                print(" sum name:",  sum_name)
-                print("_sum_name:", _sum_name)
+                if len(Node.all_names(_body, sum_name)) - 1: return None
+                print(" sum name:",  sum_name)  # TODO: logger
+                print("_sum_name:", _sum_name)  # TODO: logger
                 return node if sum_name == _sum_name else None
         return None
     
@@ -305,8 +297,7 @@ class ForToSetComprehension(ForRule):
 class ForToSum(ForRule):
     
     def _match_Assign(self, node: AST) -> AST | None:
-        """Returns whether `node` assigns the literal 0 or 0.0 to `_id`.
-        """
+        """Returns whether `node` assigns the literal 0 or 0.0"""
         match node:
             case(
                 ast.Assign(
@@ -335,12 +326,12 @@ class ForToSum(ForRule):
                             op=ast.Add(),
                             value=_)
                     ],
-                    orelse=[])
+                    orelse=[]) as _body
                 ],
                 orelse=[])
                 ):
-                print(" sum name:",  sum_name)
-                print("_sum_name:", _sum_name)
+                if len(Node.all_names(_body, sum_name)) - 1:
+                    return None
                 return node if sum_name == _sum_name else None
         return None
 
@@ -371,7 +362,7 @@ class ForToSumNumpy(ForRule):
     def match(self, node) -> bool:
         pass
 
-    def change(self, node) -> tuple | None:
+    def change(self, node) -> dict | None:
         pass
 
 

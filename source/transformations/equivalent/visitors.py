@@ -1,4 +1,4 @@
-from _ast import Assign
+
 import ast
 
 from ast import AST, NodeVisitor, NodeTransformer, fix_missing_locations

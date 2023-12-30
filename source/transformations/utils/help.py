@@ -8,3 +8,5 @@ source = """
 root = ast.parse(source)
 
 print(ast.dump(root, indent=3))
+
+exit(1)
