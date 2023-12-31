@@ -1,11 +1,15 @@
+# TODO: this should handle parsing the ast not the application
+
+
 import copy
 
 from transformations.transformation import (
-    AST, NodeTransformation, NodeVisitor
+    AST, NodeVisitor,
+    NodeTransformation
 )
 
 from transformations.equivalent.visitors import (
-    ForTransformer, IfTransformer, FunctionDefTransformer, LogicTransformer
+    TFor, TIf, TFunctionDef, TLogic
 )
 
 from transformations.equivalent.rules import (
@@ -19,7 +23,8 @@ from transformations.equivalent.rules import (
     # function def rules
     ExtractFunctionDefGuard,
     # logic rules
-    DoubleNegation,DeMorgan
+    DoubleNegation,
+    DeMorgan
 )
 
 
@@ -34,8 +39,12 @@ class TransformationBuilder:
     
     def get_ast(self) -> AST | None: return self.__ast
     
-    def add(self, visitor: NodeVisitor):
+    def add_one(self, visitor: NodeVisitor):
         self.queue.append(visitor)
+        return self
+    
+    def add(self, *visitors: NodeVisitor):
+        self.queue.extend(visitors)
         return self
     
     def run(self):
@@ -58,10 +67,10 @@ class CopyTransformer():
     def apply_for_to_comprehension(self):
         (
             TransformationBuilder(self.ast)
-            .add(ForTransformer(ForToListComprehension()))
-            .add(ForTransformer(ForToDictComprehension()))
-            .add(ForTransformer(ForToSetComprehension()))
-            .add(ForTransformer(ForToSum()))
+            .add(TFor(ForToListComprehension()))
+            .add(TFor(ForToDictComprehension()))
+            .add(TFor(ForToSetComprehension()))
+            .add(TFor(ForToSum()))
             .run()
         )
         return self
@@ -69,7 +78,7 @@ class CopyTransformer():
     def apply_invert_if(self):
         (
             TransformationBuilder(self.ast)
-            .add(IfTransformer(InvertIf()))
+            .add(TIf(InvertIf()))
             .run()
         )
         return self
@@ -77,7 +86,7 @@ class CopyTransformer():
     def apply_invert_def(self):
         (
             TransformationBuilder(self.ast)
-            .add(FunctionDefTransformer(ExtractFunctionDefGuard()))
+            .add(TFunctionDef(ExtractFunctionDefGuard()))
             .run()
         )
         return self
@@ -85,8 +94,8 @@ class CopyTransformer():
     def apply_logic_rules(self):
         (
             TransformationBuilder(self.ast)
-            .add(LogicTransformer(DoubleNegation()))
-            .add(LogicTransformer(DeMorgan()))
+            .add(TLogic(DoubleNegation()))
+            .add(TLogic(DeMorgan()))
             .run()
         )
         return self

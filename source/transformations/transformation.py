@@ -7,7 +7,7 @@ import ast
 from ast import AST, NodeVisitor, NodeTransformer
 
 
-class NodeTransformation(ABC):
+class NodeTransformation:
     
     def __init__(self, ast: AST) -> None:
         self.ast = ast

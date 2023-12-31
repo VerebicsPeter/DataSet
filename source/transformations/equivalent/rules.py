@@ -7,6 +7,8 @@ from ast import AST, expr, stmt
 
 import ast
 
+from .changes import ForChange, InPlaceChange
+
 from ..utils.helpers import Node
 
 
@@ -28,12 +30,12 @@ class Rule(ABC):
 
 
 class ForRule(Rule):
-    """Reduces a linear-sum based for loop (Pattern) to a comprehensions (Result).
+    """Reduces a "sum based" for loop (Pattern) to a comprehensions (Result).
     """
 
     def match(self, node: AST) -> bool:
         # reset the state
-        self.__reset_state()
+        self._reset_state()
 
         try:
             p = node.parent.body
@@ -68,8 +70,7 @@ class ForRule(Rule):
         
         return bool(self._For)
 
-
-    def change(self, node: AST) -> dict | None:
+    def change(self, node: AST) -> ForChange | None:
         print("trying to match...")  # TODO: logger
         if self.match(node):
             target = self._For.target
@@ -92,10 +93,10 @@ class ForRule(Rule):
         pass
     
     @abstractmethod
-    def _get_change(self, target: expr, iter: expr, ifs: list[expr], statement: stmt) -> dict | None:
+    def _get_change(self, target: expr, iter: expr, ifs: list[expr], statement: stmt) -> ForChange | None:
         pass
     
-    def __reset_state(self) -> None:
+    def _reset_state(self) -> None:
         self._Assign : ast.Assign = None
         self._For    : ast.For    = None
         self._sum    : str        = None
@@ -148,7 +149,7 @@ class ForToListComprehension(ForRule):
                 return node if sum_name == _sum_name else None
         return None
     
-    def _get_change(self, target: expr, iter: expr, ifs: list[expr], statement: stmt) -> dict | None:
+    def _get_change(self, target: expr, iter: expr, ifs: list[expr], statement: stmt) -> ForChange | None:
         if not self._Assign or not self._For: return None
         # get values from statement
         args = statement.value.args
@@ -157,11 +158,7 @@ class ForToListComprehension(ForRule):
             elt=args[0],  # this is correct because append only takes one argument
             generators=[ast.comprehension(target=target,iter=iter,ifs=ifs,is_async=0)]
         )
-        return {
-            "target": self._Assign,
-            "remove": self._For,
-            "result": result,
-        }
+        return ForChange(self._Assign, self._For, result)
 
 
 class ForToDictComprehension(ForRule):
@@ -213,7 +210,7 @@ class ForToDictComprehension(ForRule):
                 return node if sum_name == _sum_name else None
         return None
     
-    def _get_change(self, target: expr, iter: expr, ifs: list[expr], statement: stmt) -> dict | None:
+    def _get_change(self, target: expr, iter: expr, ifs: list[expr], statement: stmt) -> ForChange | None:
         if not self._Assign or not self._For: return None
         # get values from statement
         slice = statement.targets[0].slice
@@ -223,11 +220,7 @@ class ForToDictComprehension(ForRule):
             key=slice, value=value,
             generators=[ast.comprehension(target=target,iter=iter,ifs=ifs,is_async=0)]
         )
-        return {
-            "target": self._Assign,
-            "remove": self._For,
-            "result": result,
-        }
+        return ForChange(self._Assign, self._For, result)
 
 
 class ForToSetComprehension(ForRule):
@@ -287,11 +280,7 @@ class ForToSetComprehension(ForRule):
             elt=args[0],  # this is correct because add only takes one argument
             generators=[ast.comprehension(target=target,iter=iter,ifs=ifs,is_async=0)]
         )
-        return {
-            "target": self._Assign,
-            "remove": self._For,
-            "result": result
-        }
+        return ForChange(self._Assign, self._For, result)
 
 
 class ForToSum(ForRule):
@@ -349,11 +338,7 @@ class ForToSum(ForRule):
                 )],
             keywords=[]
         )
-        return {
-            "target": self._Assign,
-            "remove": self._For,
-            "result": result,
-        }
+        return ForChange(self._Assign, self._For, result)
 
 
 # TODO: implement
@@ -376,7 +361,7 @@ class InvertIf(Rule):
             case _:
                 return False
     
-    def change(self, node: AST) -> dict | None:
+    def change(self, node: AST) -> InPlaceChange | None:
         if not self.match(node): return None
         
         test = node.test
@@ -387,7 +372,7 @@ class InvertIf(Rule):
             body=orelse, orelse=body,
             test=ast.UnaryOp(op=ast.Not(), operand=test)
         )
-        return { "result": result }
+        return InPlaceChange(result)
 
 
 class ExtractFunctionDefGuard(Rule):
@@ -410,7 +395,7 @@ class ExtractFunctionDefGuard(Rule):
             case _:
                 return None
     
-    def change(self, node: AST) -> dict | None:
+    def change(self, node: AST) -> InPlaceChange | None:
         if not (matched := self.match(node)): return None
         (
             f_name,
@@ -425,7 +410,7 @@ class ExtractFunctionDefGuard(Rule):
             test=ast.UnaryOp(op=ast.Not(), operand=f_test), body=f_orelse, orelse=[]
         )
         
-        f_body.insert(0, guard)  # requires fix_missing_locations
+        f_body.insert(0, guard)  # NOTE: requires fix_missing_locations
         
         result = ast.FunctionDef(
             name=f_name,
@@ -433,7 +418,7 @@ class ExtractFunctionDefGuard(Rule):
             body=f_body,
             decorator_list=f_decorator_list,
         )
-        return { "result": result }
+        return InPlaceChange(result)
 
 
 class DoubleNegation(Rule):
@@ -449,12 +434,12 @@ class DoubleNegation(Rule):
             case _:
                 return False
     
-    def change(self, node: AST) -> dict | None:
+    def change(self, node: AST) -> InPlaceChange | None:
         if not self.match(node): return None
         
         result = node.operand.operand
         
-        return { "result": result }
+        return InPlaceChange(result)
 
 
 class DeMorgan(Rule):
@@ -470,7 +455,7 @@ class DeMorgan(Rule):
             case _:
                 return False
     
-    def change(self, node: AST) -> dict | None:
+    def change(self, node: AST) -> InPlaceChange | None:
         if not self.match(node): return None
         
         values = [ 
@@ -483,11 +468,11 @@ class DeMorgan(Rule):
                 op=ast.Or(),
                 values=values
             )
-            return { "result": result }
+            return InPlaceChange(result)
         
         if isinstance(node.operand.op, ast.Or):
             result = ast.BoolOp(
                 op=ast.And(),
                 values=values
             )
-            return { "result": result }
+            return InPlaceChange(result)

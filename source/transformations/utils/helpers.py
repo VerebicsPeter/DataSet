@@ -8,18 +8,18 @@ import ast
 class NameVisitor(NodeVisitor):
     
     def get_names(self, node: AST, id: str = None) -> list:
-        self.__id    = id
-        self.__names = []
+        self._id    = id
+        self._names = []
         self.visit(node)
-        return self.__names
+        return self._names
 
     def visit_Name(self, node: ast.Name):
-        match self.__id:
+        match self._id:
             case None:
-                self.__names.append(node)
+                self._names.append(node)
             case id:
                 if id != node.id: return
-                self.__names.append(node)
+                self._names.append(node)
 
 
 class Node:

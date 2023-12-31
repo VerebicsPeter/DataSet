@@ -5,6 +5,8 @@ from ast import AST, NodeVisitor, NodeTransformer, fix_missing_locations
 
 from functools import wraps
 
+from .changes import ForChange, InPlaceChange
+
 from .rules import (
     ForToListComprehension,
     ForToDictComprehension,
@@ -13,7 +15,8 @@ from .rules import (
     ForToSumNumpy,
     InvertIf,
     ExtractFunctionDefGuard,
-    DoubleNegation,DeMorgan,
+    DoubleNegation,
+    DeMorgan,
 )
 
 # wrapper function that adds parent attributes
@@ -27,21 +30,20 @@ def context_parent(method):
     return wrapper
 
 
-class ForTransformer(NodeTransformer):
+class TFor(NodeTransformer):
     
     def __init__(
-        self,rule:
-          ForToListComprehension
-        | ForToDictComprehension
-        | ForToSetComprehension
-        | ForToSum
-        | ForToSumNumpy
+        self,rule: ForToListComprehension
+                 | ForToDictComprehension
+                 | ForToSetComprehension
+                 | ForToSum
+                 | ForToSumNumpy
         ):
         self.rule = rule
         # init starting node to None
         self._start_node = None
         # init results
-        self.results = []
+        self.results: list[ForChange] = []
         self.got_results = False
     
     # Transform the AST in one call
@@ -59,12 +61,13 @@ class ForTransformer(NodeTransformer):
             self.visit(self._start_node)
             self.got_results = True
     
-    # Apply the results after visiting
+    # Set the results
     def __set_results(self) -> None:
         if self.got_results:
             for result in self.results:
                 print("Applying:", result)
-                result["target"].value = result["result"]
+                result.target.value = result.r_node
+            # visit again to remove for nodes
             self.visit(self._start_node)
     
     # Visitor for Assignment nodes
@@ -79,7 +82,6 @@ class ForTransformer(NodeTransformer):
         result = self.rule.change(node)
         # if the result matches, do semantic checks and store if possible
         if result:
-            print("has change...")
             self.results.append(result)
             
         print('-'*100)
@@ -90,13 +92,13 @@ class ForTransformer(NodeTransformer):
     def visit_For(self, node: AST):
         if self.got_results:
             # remove the node if necessary
-            if node in [result["remove"] for result in self.results]:
+            if node in [result.remove for result in self.results]:
                 return None
         # leave the node
         return node
 
 
-class IfTransformer(NodeTransformer):
+class TIf(NodeTransformer):
     
     def __init__(
         self,rule: InvertIf
@@ -115,12 +117,12 @@ class IfTransformer(NodeTransformer):
         
         result = self.rule.change(node)
         
-        if result: return result["result"]
+        if result: return result.r_node
         # leave unchanged        
         return node
 
 
-class FunctionDefTransformer(NodeTransformer):
+class TFunctionDef(NodeTransformer):
     
     def __init__(
         self,rule: ExtractFunctionDefGuard
@@ -139,16 +141,15 @@ class FunctionDefTransformer(NodeTransformer):
         print(ast.dump(node, indent=2))
         
         result = self.rule.change(node)
-        if result: return result["result"]
+        if result: return result.r_node
         # leave unchanged
         return node
 
 
-class LogicTransformer(NodeTransformer):
+class TLogic(NodeTransformer):
     
     def __init__(
-        self,
-        rule: DoubleNegation | DeMorgan
+        self,rule: DoubleNegation | DeMorgan
         ):
         self.rule = rule
     
@@ -163,6 +164,6 @@ class LogicTransformer(NodeTransformer):
         
         result = self.rule.change(node)
         
-        if result: return result["result"]
+        if result: return result.result
         # leave unchanged
         return node
