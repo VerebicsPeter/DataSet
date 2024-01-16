@@ -1,4 +1,4 @@
-# TODO: this should handle parsing the ast not the application
+    # TODO: this should handle parsing the ast not the application
 
 
 import copy
@@ -99,3 +99,7 @@ class CopyTransformer():
             .run()
         )
         return self
+
+
+def greet():
+    print("Greetings from transformations package!")

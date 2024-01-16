@@ -8,7 +8,7 @@ import ast
 
 from ..transformation import NodeTransformation
 
-from ..equivalent.visitors import ForTransformer
+from ..equivalent.visitors import TFor
 
 from ..equivalent.rules import (
     ForToListComprehension,
@@ -70,28 +70,28 @@ def test_for_to_list():
     print(source_for_to_list)
     root = ast.parse(source_for_to_list)
     t = NodeTransformation(ast=root)
-    t.transform_nodes(ForTransformer(ForToListComprehension()))
+    t.transform_nodes(TFor(ForToListComprehension()))
     print_result(t)
 
 def test_for_to_list_if():
     print(source_for_to_list_if)
     root = ast.parse(source_for_to_list_if)
     t = NodeTransformation(ast=root)
-    t.transform_nodes(ForTransformer(ForToListComprehension()))
+    t.transform_nodes(TFor(ForToListComprehension()))
     print_result(t)
 
 def test_for_to_dict():
     print(source_for_to_dict)
     root = ast.parse(source_for_to_dict)
     t = NodeTransformation(ast=root)
-    t.transform_nodes(ForTransformer(ForToDictComprehension()))
+    t.transform_nodes(TFor(ForToDictComprehension()))
     print_result(t)
 
 def test_for_to_dict_if():
     print(source_for_to_dict_if)
     root = ast.parse(source_for_to_dict_if)
     t = NodeTransformation(ast=root)
-    t.transform_nodes(ForTransformer(ForToDictComprehension()))
+    t.transform_nodes(TFor(ForToDictComprehension()))
     print_result(t)
 
 def test_for_to_numpy_sum():

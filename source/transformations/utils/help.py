@@ -2,6 +2,11 @@
 
 import ast
 
+import os
+
+print(__file__)
+print(os.path.join(os.path.abspath(__file__), '../../../'))
+
 source = """
 """
 

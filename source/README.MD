@@ -2,11 +2,11 @@
 
 ## Initialize
 
-- **crawler.py** - **copy** all **.py** scripts from `data/repos` to `data/scripts`.
+- **crawler.py** - **copy** all **.py** scripts from `data/repos` to `data/repos/__scripts__`.
 
 ## Refactor
 
-- Run **isort**, **autopep** or **modernize** shell scripts inside `refactorings` to refactor the scripts inside `data/scripts`.
+- Select refactorings to run.
 
 ## Persistance
 

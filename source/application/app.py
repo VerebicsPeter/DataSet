@@ -16,20 +16,6 @@ from graphviz import Digraph  # for rendering graphs
 
 from transformations import transformation_api as api
 
-# NOTE: this is slow
-def highlight_syntax(textbox: tk.Text):
-    text_content = textbox.get("1.0", "end-1c")
-    # pattern for keywords
-    keyword_pattern = r"\b(" + "|".join(keyword.kwlist) + r")\b"
-    # compiled regex
-    keyword_regex = re.compile(keyword_pattern)
-
-    textbox.tag_remove("keyword", "1.0", tk.END)
-    
-    for matched in keyword_regex.finditer(text_content):
-        start, end = f"1.0+{matched.start()}c", f"1.0+{matched.end()}c"
-        textbox.tag_add("keyword", start, end)
-
 
 class Menu(ttk.Frame):
     def __init__(self, parent):
@@ -364,3 +350,19 @@ class DigraphMaker:
         # render the Digraph as a PNG file
         dot.format = 'png'
         dot.render('ast_graph', view=True)
+
+
+# NOTE: this is slow
+def highlight_syntax(textbox: tk.Text):
+    text_content = textbox.get("1.0", "end-1c")
+    # pattern for keywords
+    keyword_pattern = r"\b(" + "|".join(keyword.kwlist) + r")\b"
+    # compiled regex
+    keyword_regex = re.compile(keyword_pattern)
+
+    textbox.tag_remove("keyword", "1.0", tk.END)
+    
+    for matched in keyword_regex.finditer(text_content):
+        start, end = f"1.0+{matched.start()}c", f"1.0+{matched.end()}c"
+        textbox.tag_add("keyword", start, end)
+
