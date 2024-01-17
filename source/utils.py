@@ -1,5 +1,3 @@
-    # TODO move this up into script package
-
 import os
 
 BUFFER = 65536  # 64kb chunks

@@ -1,5 +1,3 @@
-import ast
-
 from dataclasses import dataclass
 
 import keyword, re  # for syntaxt highlighting
@@ -67,7 +65,6 @@ class TreeView(ttk.Frame):
         self.treeview.heading("#0", text="Node type", anchor="center")
         self.treeview.heading("#1", text="Node value", anchor="center")
     
-
     def on_update(self):
         self.treeview.delete(*self.treeview.get_children())
         
@@ -153,13 +150,13 @@ class ResultInputs(ttk.Frame):
         )
         self.show_ast_button.pack()
 
+
 @dataclass
 class TransformView():
     text: SourceText | ResultText; inputs: SourceInputs | ResultInputs; treeview: TreeView
 
 
 class App(tk.Tk):
-
     def __init__(self) -> None:
         # setup
         super().__init__()
@@ -206,7 +203,6 @@ class App(tk.Tk):
         # run
         self.mainloop()
 
-
     def ast_parse(self, target: str) -> None:
         if target not in {'source', 'result'}: return
         text: str = self.views[target].text.textbox.get('1.0', tk.END)
@@ -215,18 +211,16 @@ class App(tk.Tk):
         # update the tree view
         self.views[target].treeview.on_update()
 
-
     def ast_transform(self) -> None:
         if AppState.source_ast:
             # TODO: selection for transformations
-            chain = api.CopyTransformer(AppState.source_ast)
-            (
-            chain
-                .apply_for_to_comprehension().apply_invert_def().apply_invert_if().apply_logic_rules()
-            )
-            AppState.result_ast = chain.ast
-            # maybe use a try except
-            unparsed = ast.unparse(AppState.result_ast)
+            transformer = api.CopyTransformer(AppState.source_ast)
+            transformer.apply_all()
+            
+            AppState.result_ast = transformer.ast
+            # maybe use a try block
+            unparsed = api.unparse(AppState.result_ast)
+            # update text widget
             self.result_text_widget.textbox['state'] = 'normal'
             self.result_text_widget.textbox.delete(1.0   ,   tk.END)
             self.result_text_widget.textbox.insert(tk.END, unparsed)
@@ -237,13 +231,11 @@ class App(tk.Tk):
         else:
             messagebox.showinfo(title="Transform", message="No AST provided.")
 
-
     def ast_show_source(self) -> None:
         if AppState.source_ast:
             DigraphMaker.make(AppState.source_ast)
         else:
             messagebox.showinfo(title="Transform", message="No AST provided.")
-
 
     def ast_show_result(self) -> None:
         if AppState.result_ast: 
@@ -258,11 +250,11 @@ class AppState:
     builder: api.TransformationBuilder()  # builder for transformations
     
     @classmethod
-    def parse_ast(cls, source: str, target: str, show_image: bool = False) -> None:
+    def parse_ast(cls, source: str, target: str) -> None:
         if target not in {'source', 'result'}: return
         
         try:
-            parsed = ast.parse(source)
+            parsed = api.parse(source)
         except Exception as exception:
             print('Error while parsing:')
             print(exception)
@@ -281,11 +273,11 @@ class AppState:
         print('-'*100)
         print(parsed)
         print('-'*100)
-        print(ast.dump(parsed, indent=2))
+        print(api.dump(parsed, indent=2))
         print('-'*100)
     
     @classmethod
-    def queue_add(cls, ) -> None:
+    def queue_add(cls) -> None:
         # TODO
         pass
     
@@ -294,8 +286,8 @@ class AppState:
         if not cls.source_ast:
             return False
         # TODO
-        pass    
-            
+        pass
+
     @classmethod
     def treeview_data(cls, target: str) -> list:
         data = []
@@ -308,11 +300,11 @@ class AppState:
         if not root: print("No AST provided."); return data
         
         def node_text(node):
-            unparsed = ast.unparse(node)
+            unparsed = api.unparse(node)
             if len(unparsed) < 30:
                 return unparsed.split('\n', 1)[0]
             else:
-                return unparsed[:30].split('\n', 1)[0]+' ... '
+                return unparsed[:30].split('\n', 1)[0]+' ...'
 
         def add_node(node, parent=None):
             node_name = str(node.__class__.__name__)
@@ -325,7 +317,7 @@ class AppState:
                 data.append(("",
                     node.uuid, node_name, (node_text(node),))
                 )
-            for child in ast.iter_child_nodes(node):
+            for child in api.iter_child_nodes(node):
                 add_node(child, node)
         
         add_node(root)
@@ -335,16 +327,16 @@ class AppState:
 class DigraphMaker:
 
     @staticmethod
-    def make(root: ast.AST) -> None:
-        # create a Digraph object
-        dot = Digraph()
+    def make(root: api.AST) -> None:
         def add_node(node, parent=None):
             node_name = str(node.__class__.__name__)
             dot.node(str(id(node)),node_name)
             if parent:
                 dot.edge(str(id(parent)),str(id(node)))
-            for child in ast.iter_child_nodes(node):
+            for child in api.iter_child_nodes(node):
                 add_node(child, node)
+        # create a Digraph object
+        dot = Digraph()
         # add nodes to the Digraph
         add_node(root)
         # render the Digraph as a PNG file
@@ -361,8 +353,6 @@ def highlight_syntax(textbox: tk.Text):
     keyword_regex = re.compile(keyword_pattern)
 
     textbox.tag_remove("keyword", "1.0", tk.END)
-    
     for matched in keyword_regex.finditer(text_content):
         start, end = f"1.0+{matched.start()}c", f"1.0+{matched.end()}c"
         textbox.tag_add("keyword", start, end)
-

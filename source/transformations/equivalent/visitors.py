@@ -40,35 +40,43 @@ class TFor(NodeTransformer):
                  | ForToSumNumpy
         ):
         self.rule = rule
-        # init starting node to None
-        self._start_node = None
+        # node on which the transformer last ran
+        self.node = None
+        # init changed 
+        self.changed = False
         # init results
-        self.results: list[ForChange] = []
+        self.resutls : list[ForChange] = []
         self.got_results = False
-    
+        
+        
     # Transform the AST in one call
     @context_parent
     def transform_ast(self, node: AST):
-        self._start_node = node
+        self.node = node
+        self.changed = False
         self.__get_results()
         self.__set_results()
     
     # Get the results by calling visitor
     def __get_results(self) -> None:
-        if self._start_node:
-            self.results = []
+        if self.node:
+            self.resutls = []
             self.got_results = False
-            self.visit(self._start_node)
+            # first visit to gather results
+            self.visit(self.node)
             self.got_results = True
     
     # Set the results
     def __set_results(self) -> None:
         if self.got_results:
-            for result in self.results:
-                print("Applying:", result)
+            for result in self.resutls:
                 result.target.value = result.r_node
+                self.changed = True
+                print("Applyied:", result)  # TODO logger
             # visit again to remove for nodes
-            self.visit(self._start_node)
+            self.visit(self.node)
+            # this is neccessary to tell if there are any changes
+            self.changed = bool(self.resutls)
     
     # Visitor for Assignment nodes
     def visit_Assign(self, node: AST):
@@ -80,9 +88,8 @@ class TFor(NodeTransformer):
         print()
         
         result = self.rule.change(node)
-        # if the result matches, do semantic checks and store if possible
         if result:
-            self.results.append(result)
+            self.resutls.append(result)
             
         print('-'*100)
         
@@ -92,7 +99,7 @@ class TFor(NodeTransformer):
     def visit_For(self, node: AST):
         if self.got_results:
             # remove the node if necessary
-            if node in [result.remove for result in self.results]:
+            if node in [result.remove for result in self.resutls]:
                 return None
         # leave the node
         return node
@@ -104,9 +111,11 @@ class TIf(NodeTransformer):
         self,rule: InvertIf
         ):
         self.rule = rule
+        self.changed = False
     
     # Transform the AST
     def transform_ast(self, node: AST):
+        self.changed = False
         self.visit(node)
     
     # Visitor for if nodes
@@ -117,7 +126,9 @@ class TIf(NodeTransformer):
         
         result = self.rule.change(node)
         
-        if result: return result.r_node
+        if result:
+            self.changed = True
+            return result.r_node
         # leave unchanged        
         return node
 
@@ -128,8 +139,10 @@ class TFunctionDef(NodeTransformer):
         self,rule: ExtractFunctionDefGuard
         ):
         self.rule = rule
+        self.changed = False
 
     def transform_ast(self, node: AST):
+        self.changed = False
         self.visit(node)
         # NOTE: IT'S VERY IMPORTANT TO FIX LOCATIONS OF GENERATED NODES
         # (ExtractFunctionDefGuard rule inserts an if statement into the generated function def)
@@ -141,7 +154,9 @@ class TFunctionDef(NodeTransformer):
         print(ast.dump(node, indent=2))
         
         result = self.rule.change(node)
-        if result: return result.r_node
+        if result:
+            self.changed = True
+            return result.r_node
         # leave unchanged
         return node
 
@@ -152,9 +167,11 @@ class TLogic(NodeTransformer):
         self,rule: DoubleNegation | DeMorgan
         ):
         self.rule = rule
+        self.changed = False
     
     # Transform the AST
     def transform_ast(self, node: AST):
+        self.changed = False
         self.visit(node)
     
     # Visitor for unary operators
@@ -164,6 +181,8 @@ class TLogic(NodeTransformer):
         
         result = self.rule.change(node)
         
-        if result: return result.result
+        if result:
+            self.changed = True
+            return result.r_node
         # leave unchanged
         return node
