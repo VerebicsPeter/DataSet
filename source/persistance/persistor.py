@@ -1,5 +1,3 @@
-    # TODO: having the refactoring scripts in shell scripts is dumb, do everything in a module
-
 from pymongo.collection import Collection 
 
 class RefactoringStore:

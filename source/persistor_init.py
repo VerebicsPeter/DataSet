@@ -43,5 +43,6 @@ if __name__ == "__main__":
 
     for script in scripts:
         hash = hashlib.sha256()
-        utils.get_hash(script['path'], hash)
-        os.popen(f"cp {script['path']} {DEST}/{hash.hexdigest()}.py")
+        path = script['path']
+        utils.get_hash(path, hash)
+        os.popen(f"cp {path} {DEST}/{hash.hexdigest()}.py"); print(f"copying {path} to destination")

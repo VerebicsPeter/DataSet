@@ -1,4 +1,8 @@
+    # TODO: have the rule selector thing be below the refactoring tab, align the buttons horizontally!
+
 from dataclasses import dataclass
+
+import logging
 
 import keyword, re  # for syntaxt highlighting
 
@@ -14,15 +18,14 @@ from graphviz import Digraph  # for rendering graphs
 
 from transformations import transformation_api as api
 
-
 class Menu(ttk.Frame):
-    def __init__(self, parent):
+    def __init__(self, parent: tk.Tk):
         super().__init__(parent)
         self._menubar = tk.Menu(parent)
         # submenus
-        self.filemenu = tk.Menu(self._menubar, tearoff=0, font=('lucida, 10'))
+        self.filemenu = tk.Menu(self._menubar, tearoff=0, font=('lucida', 10))
         self.filemenu.add_command(label="Close", command=self.on_close)
-        self.aboutmenu = tk.Menu(self._menubar, tearoff=0, font=('lucida, 10'))
+        self.aboutmenu = tk.Menu(self._menubar, tearoff=0, font=('lucida', 10))
         self.aboutmenu.add_command(label="Usage", command=self.on_about)
         # add cascade
         self._menubar.add_cascade(label="File", menu=self.filemenu)
@@ -33,7 +36,7 @@ class Menu(ttk.Frame):
         self.parent.destroy()
     
     def on_about(self):
-        print('`on_about` not implemented')
+        logging.info('"on_about" not implemented')
 
 
 class TreeView(ttk.Frame):
@@ -78,131 +81,137 @@ class TreeView(ttk.Frame):
                 parent=item[0], index='end', iid=item[1], text=item[2], values=item[3]
             )
             if item[0] == "":
-                self.treeview.item(item[1], open=True) # Open parent
+                self.treeview.item(item[1], open=True)  # Open parent
         
         # Select root
         self.treeview.selection_set(self.data[0][1])
         self.treeview.see(self.data[0][1])
 
 
+class RuleSelector(ttk.Frame):
+    def __init__(self, parent):
+        super().__init__(parent)
+        
+        options = [ visitor['name'] for visitor in api.get_all_visitors() ]
+        
+        self.lblRules = ttk.Label(self, text="Add rule:")
+        self.lblRules.pack(side="left", padx=5, pady=5)
+        self.boxRules = ttk.Combobox(self, values=options)
+        self.boxRules.pack(side="left", padx=5, pady=5)
+
+
 class SourceText(ttk.Frame):
     def __init__(self, parent):
         super().__init__(parent)
 
+        self.scrollBar = ttk.Scrollbar(self)
+        self.scrollBar.pack(side="right", fill="y")
+
         self.textbox = tk.Text(self, height=self.winfo_height(), width=self.winfo_width(),
-            font=('lucidatypewriter', 14)
+            font=('FreeMono', 14)
         )
-        self.textbox.pack(fill="both", expand=True)
-        self.textbox.tag_config("keyword", foreground="purple3")
+        self.textbox.tag_config("keyword", foreground="purple")
+        self.textbox.tag_config("strings", foreground="goldenrod")
+        self.textbox.tag_config("comment", foreground="green")
         self.textbox.bind("<KeyRelease>", self.on_update)
+        self.textbox.pack(fill="both", expand=True)
+        
+        self.scrollBar.config(command=self.textbox.yview)
+        self.textbox['yscrollcommand'] = self.scrollBar.set
         
     def on_update(self, event):
-        highlight_syntax(self.textbox)
-
-
-class SourceInputs(ttk.Frame):
-    def __init__(self, parent):
-        super().__init__(parent)
-        
-        # parse ast button
-        self.parse_ast_button = ttk.Button(self, text="Parse AST", width=20,
-            command=lambda:parent.ast_parse('source')
-        )
-        self.parse_ast_button.pack(pady=3)
-        
-        # show ast button
-        self.show_ast_button = ttk.Button(self, text="Show AST", width=20,
-            command=parent.ast_show_source
-        )
-        self.show_ast_button.pack(pady=3)
-        
-        # transform button
-        self.transform_button = ttk.Button(self, text="Transform", width=20,
-            command=parent.ast_transform
-        )
-        self.transform_button.pack(pady=3)
+        SyntaxHighlighter.highlight(self.textbox)
 
 
 class ResultText(ttk.Frame):
     def __init__(self, parent):
         super().__init__(parent)
+        
+        self.scrollBar = ttk.Scrollbar(self)
+        self.scrollBar.pack(side="right", fill="y")
 
         self.textbox = tk.Text(self, height=self.winfo_height(), width=self.winfo_width(),
-            font=('lucidatypewriter', 14)
+            font=('FreeMono', 14)
         )
         self.textbox.config(
             state="disabled"
         )
+        self.textbox.tag_config("keyword", foreground="purple")
+        self.textbox.tag_config("strings", foreground="goldenrod")
+        self.textbox.tag_config("comment", foreground="green")
         self.textbox.pack(fill="both", expand=True)
-        self.textbox.tag_config("keyword", foreground="purple3")
+        
+        self.scrollBar.config(command=self.textbox.yview)
+        self.textbox['yscrollcommand'] = self.scrollBar.set
 
     def on_update(self):
-        highlight_syntax(self.textbox)
-
-
-class ResultInputs(ttk.Frame):
-    def __init__(self, parent):
-        super().__init__(parent)
-        
-        # parse ast button
-        self.show_ast_button = ttk.Button(self, text="Show AST", width=20,
-            command=parent.ast_show_result
-        )
-        self.show_ast_button.pack()
+        SyntaxHighlighter.highlight(self.textbox)
 
 
 @dataclass
 class TransformView():
-    text: SourceText | ResultText; inputs: SourceInputs | ResultInputs; treeview: TreeView
+    text: SourceText | ResultText; treeview: TreeView
 
 
-class App(tk.Tk):
-    def __init__(self) -> None:
-        # setup
-        super().__init__()
-        self.geometry("1280x640")
-        self.minsize(1280,640)
-        self.title("Equivalent Transformations")
-        # menu
-        self.menu = Menu(self)
-        self.config(menu=self.menu._menubar)
-        # rows and columns
-        self.rowconfigure(0, weight=3)
-        self.rowconfigure(1, weight=2)
-        self.rowconfigure(2, weight=1)
+class RefactorTab(ttk.Frame):
+    def __init__(self, parent: tk.Tk):
+        super().__init__(parent)
+        # rows
+        self.rowconfigure(0, weight=5)
+        self.rowconfigure(1, weight=3)
+        self.rowconfigure(2, weight=0)
+        # columns
         self.columnconfigure(0, weight=1)
         self.columnconfigure(1, weight=1)
-        # widgets
+        self.columnconfigure(2, weight=1)
+        self.columnconfigure(3, weight=1)
+        
+        # source widgets
         self.source_text_widget = SourceText(self)
-        self.source_text_widget.grid(row=0, column=0, sticky="nsew")
-        self.result_text_widget = ResultText(self)
-        self.result_text_widget.grid(row=0, column=1, sticky="nsew")
+        self.source_text_widget.grid(row=0, column=0, columnspan=2, sticky="nsew")
+        
         self.source_tree_widget = TreeView(self, "source")
-        self.source_tree_widget.grid(row=1, column=0, sticky="nsew")
+        self.source_tree_widget.grid(row=1, column=0, columnspan=2, sticky="nsew")
+        
+        # result widgets
+        self.result_text_widget = ResultText(self)
+        self.result_text_widget.grid(row=0, column=2, columnspan=2, sticky="nsew")
+        
         self.result_tree_widget = TreeView(self, "result")
-        self.result_tree_widget.grid(row=1, column=1, sticky="nsew")
-        self.source_input_widget = SourceInputs(self)
-        self.source_input_widget.grid(row=2, column=0)
-        self.result_input_widget = ResultInputs(self)
-        self.result_input_widget.grid(row=2, column=1)
+        self.result_tree_widget.grid(row=1, column=2, columnspan=2, sticky="nsew")
+        
+        # show source ast button
+        self.show_ast_button = ttk.Button(self, text="Show AST", width=20,
+            command=self.ast_show_source
+        ).grid(row=2, column=0, pady=10)
+        
+        # parse source ast button
+        self.parse_ast_button = ttk.Button(self, text="Parse AST", width=20,
+            command=lambda:self.ast_parse('source')
+        ).grid(row=2, column=1, pady=10)
+        
+        # transform button
+        self.transform_button = ttk.Button(self, text="Transform", width=20,
+            command=self.ast_transform
+        ).grid(row=2, column=2, pady=10)
+        
+        # show result ast button
+        self.show_ast_button = ttk.Button(self, text="Show AST", width=20, 
+            command=self.ast_show_result
+        ).grid(row=2, column=3, pady=10)
+        
         # dict of widgets
         self.views: dict[str, TransformView] = {}
         
         self.views['source'] = TransformView(
             self.source_text_widget,
-            self.source_input_widget,
             self.source_tree_widget
         )
         self.views['result'] = TransformView(
             self.result_text_widget,
-            self.result_input_widget,
             self.result_tree_widget
         )
-        # set theme
-        sv_ttk.set_theme("dark")
-        # run
-        self.mainloop()
-
+        
     def ast_parse(self, target: str) -> None:
         if target not in {'source', 'result'}: return
         text: str = self.views[target].text.textbox.get('1.0', tk.END)
@@ -213,7 +222,7 @@ class App(tk.Tk):
 
     def ast_transform(self) -> None:
         if AppState.source_ast:
-            # TODO: selection for transformations
+            # TODO: selection for transformations only apply all if no visitors added to builer...
             transformer = api.CopyTransformer(AppState.source_ast)
             transformer.apply_all()
             
@@ -235,20 +244,111 @@ class App(tk.Tk):
         if AppState.source_ast:
             DigraphMaker.make(AppState.source_ast)
         else:
-            messagebox.showinfo(title="Transform", message="No AST provided.")
+            messagebox.showinfo(title="Show AST", message="No AST provided.")
 
     def ast_show_result(self) -> None:
         if AppState.result_ast: 
             DigraphMaker.make(AppState.result_ast)
         else:
-            messagebox.showinfo(title="Transform", message="No AST generated.")
+            messagebox.showinfo(title="Show AST", message="No AST generated.")
+
+
+class DatabaseTab(ttk.Frame):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.placeholder1 = ttk.Label(self,
+            text='Welcome to DB access page!')\
+            .pack(ipadx=10, ipady=10)
+        self.placeholder2 = ttk.Label(self,
+            text=f'Connection: {AppState.connection}' + ', ' + f'Documents: {AppState.get_count()}')\
+            .pack(ipadx=10, ipady=10)
+
+
+class SettingsTab(ttk.Frame):
+    def __init__(self, parent):
+        super().__init__(parent)
+        self.ruleSelector = RuleSelector(self)
+        self.ruleSelector.pack(side="left", padx=5, pady=5, anchor="nw")
+
+
+class StatusBar(ttk.Frame):
+    def __init__(self, parent):
+        super().__init__(parent)
+        # left
+        ttk.Separator(self, orient='vertical')\
+            .pack(side="left", padx=10)
+        self.lblConnection = ttk.Label(self, text=f"Database: {AppState.get_connection()}")\
+            .pack(side="left", padx=0, pady=3)
+        ttk.Separator(self, orient='vertical')\
+            .pack(side="left", padx=10)
+        # right
+        ttk.Sizegrip(self)\
+            .pack(side="right", anchor="se")
+        ttk.Separator(self, orient='vertical')\
+            .pack(side="right", padx=10)
+        self.lblSettings = ttk.Label(self, text=f"Settings: {AppState.get_settings()}")\
+            .pack(side="right", padx=0, pady=3)
+        ttk.Separator(self, orient='vertical')\
+            .pack(side="right", padx=10)
+
+
+class App(tk.Tk):
+    def __init__(self) -> None:
+        # setup
+        super().__init__()
+        self.geometry("1280x640")
+        self.minsize(1280,640)
+        self.title("Equivalent Transformations")
+        # menu
+        self.menu = Menu(self)
+        self.config(menu=self.menu._menubar)
+        # tabs
+        self.tabs = ttk.Notebook(self)
+        self.tabs.pack(side="top", fill="both", expand=True)
+        
+        self.refactorTab = RefactorTab(self.tabs)
+        self.refactorTab.pack(fill="both", expand=True)
+        self.databaseTab = DatabaseTab(self.tabs)
+        self.settingsTab = SettingsTab(self.tabs)
+        
+        self.tabs.add(self.refactorTab, text="Refactor")
+        self.tabs.add(self.databaseTab, text="Database")
+        self.tabs.add(self.settingsTab, text="Settings")
+        # status bar
+        self.statusBar = StatusBar(self)
+        self.statusBar.pack(side="bottom", fill="x")
+        # set theme
+        sv_ttk.set_theme("dark")
+        # set logging level
+        logging.root.setLevel(logging.DEBUG)
+        
+    def run(self): self.mainloop()
 
 
 class AppState:
+    connection = None
     source_ast = None
     result_ast = None
-    builder: api.TransformationBuilder()  # builder for transformations
+    visitorQueue: list[api.NodeVisitor] = []
     
+    @classmethod
+    def set_connection(cls, connection):
+        cls.connection = connection
+    
+    @classmethod
+    def get_connection(cls) -> str:
+        if cls.connection: return f"{cls.connection.HOST}:{cls.connection.PORT}"
+    
+    @classmethod
+    def get_count(cls):
+        if cls.connection:
+            db = cls.connection.refactoring
+            return db.equivalent.count_documents({})
+    
+    @classmethod
+    def get_settings(cls) -> str:
+        return "custom" if len(cls.visitorQueue) else "default"
+
     @classmethod
     def parse_ast(cls, source: str, target: str) -> None:
         if target not in {'source', 'result'}: return
@@ -270,11 +370,11 @@ class AppState:
         if target=='result':
             cls.result_ast = parsed
         
-        print('-'*100)
-        print(parsed)
-        print('-'*100)
-        print(api.dump(parsed, indent=2))
-        print('-'*100)
+        logging.debug('-'*100)
+        logging.debug(parsed)
+        logging.debug('-'*100)
+        logging.debug(f"\n{api.dump(parsed, indent=2)}")
+        logging.debug('-'*100)
     
     @classmethod
     def queue_add(cls) -> None:
@@ -282,7 +382,7 @@ class AppState:
         pass
     
     @classmethod
-    def queue_run(cls) -> None:
+    def queue_pop(cls) -> None:
         if not cls.source_ast:
             return False
         # TODO
@@ -304,7 +404,7 @@ class AppState:
             if len(unparsed) < 30:
                 return unparsed.split('\n', 1)[0]
             else:
-                return unparsed[:30].split('\n', 1)[0]+' ...'
+                return unparsed[:30].split('\n', 1)[0]+'...'
 
         def add_node(node, parent=None):
             node_name = str(node.__class__.__name__)
@@ -344,15 +444,26 @@ class DigraphMaker:
         dot.render('ast_graph', view=True)
 
 
-# NOTE: this is slow
-def highlight_syntax(textbox: tk.Text):
-    text_content = textbox.get("1.0", "end-1c")
-    # pattern for keywords
-    keyword_pattern = r"\b(" + "|".join(keyword.kwlist) + r")\b"
+class SyntaxHighlighter:
+    # patterns
+    _keyword_pattern = r"\b(" + "|".join(keyword.kwlist) + r")\b"
+    _strings_pattern = r"\"(\\.|[^\"\\])*\"|\'(\\.|[^\'\\])*\'"
     # compiled regex
-    keyword_regex = re.compile(keyword_pattern)
+    regex_keyword = re.compile(_keyword_pattern)
+    regex_strings = re.compile(_strings_pattern)
 
-    textbox.tag_remove("keyword", "1.0", tk.END)
-    for matched in keyword_regex.finditer(text_content):
-        start, end = f"1.0+{matched.start()}c", f"1.0+{matched.end()}c"
-        textbox.tag_add("keyword", start, end)
+    # NOTE: this is slow
+    @classmethod
+    def highlight(cls, textbox: tk.Text):
+        text_content = textbox.get("1.0", "end-1c")
+        
+        textbox.tag_remove("keyword", "1.0", tk.END)
+        textbox.tag_remove("comment", "1.0", tk.END)
+        textbox.tag_remove("strings", "1.0", tk.END)
+        
+        for matched in cls.regex_keyword.finditer(text_content):
+            start, end = f"1.0+{matched.start()}c", f"1.0+{matched.end()}c"
+            textbox.tag_add("keyword", start, end)
+        for matched in cls.regex_strings.finditer(text_content):
+            start, end = f"1.0+{matched.start()}c", f"1.0+{matched.end()}c"
+            textbox.tag_add("strings", start, end)

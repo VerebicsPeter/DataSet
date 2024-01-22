@@ -7,6 +7,8 @@ from ast import AST, expr, stmt
 
 import ast
 
+import logging
+
 from .changes import ForChange, InPlaceChange
 
 from ..utils.helpers import Node
@@ -41,37 +43,32 @@ class ForRule(Rule):
             p = node.parent.body
             i = node.parent.body.index(node)
         except Exception as e:
-            print(f"Error: {e}")  # TODO: logger
+            logging.info(f"'ForRule.match' matching nodes parent: {e}")
             return False
         
         if i >= len(p) - 1:  # Make sure that the node is not the last in the scope
             return False
-
-        print("assignment is not the last in scope...")  # TODO: logger
 
         self._Assign = self._match_Assign(node)
         
         if not self._Assign:
             return False
         
-        print("assignment matched the pattern...")  # TODO: logger
+        logging.info("assignment matched pattern...")
         
         try:
             self._sum = self._Assign.targets[0].id  # sum ("sum name") is the id of
                                                     # the target in the assignment
-            print("assignment to:",  self._sum)  # TODO: logger
-            print("trying to match:", p[i+1])  # TODO: logger
             self._For = self._match_For(p[i+1], self._sum)
         except Exception as e:
-            print(f"Error: {e}")  # TODO: logger
+            logging.info(f"'ForRule.match' matching for-node: {e}")
             return False
         
-        print("matched for node:", self._For)  # TODO: logger
+        logging.info(f"matched for node: {self._For}")
         
         return bool(self._For)
 
     def change(self, node: AST) -> ForChange | None:
-        print("trying to match...")  # TODO: logger
         if self.match(node):
             target = self._For.target
             iter   = self._For.iter
@@ -144,8 +141,6 @@ class ForToListComprehension(ForRule):
                 orelse=[]) as _body
                 ):
                 if len(Node.all_names(_body, sum_name)) - 1: return None
-                print(" sum_name:",  sum_name)  # TODO: logger
-                print("_sum_name:", _sum_name)  # TODO: logger
                 return node if sum_name == _sum_name else None
         return None
     
@@ -205,8 +200,6 @@ class ForToDictComprehension(ForRule):
                 orelse=[])
                 ):
                 if len(Node.all_names(_body, sum_name)) - 1: return None
-                print(" sum_name:",  sum_name)  # TODO: logger
-                print("_sum_name:", _sum_name)  # TODO: logger
                 return node if sum_name == _sum_name else None
         return None
     
@@ -266,8 +259,6 @@ class ForToSetComprehension(ForRule):
                 orelse=[])
                 ):
                 if len(Node.all_names(_body, sum_name)) - 1: return None
-                print(" sum name:",  sum_name)  # TODO: logger
-                print("_sum_name:", _sum_name)  # TODO: logger
                 return node if sum_name == _sum_name else None
         return None
     
@@ -369,8 +360,7 @@ class InvertIf(Rule):
         orelse = node.orelse
         
         result = ast.If(
-            body=orelse, orelse=body,
-            test=ast.UnaryOp(op=ast.Not(), operand=test)
+            body=orelse, orelse=body, test=ast.UnaryOp(op=ast.Not(), operand=test)
         )
         return InPlaceChange(result)
 

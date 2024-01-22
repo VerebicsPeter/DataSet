@@ -5,6 +5,8 @@ from ast import AST, NodeVisitor, NodeTransformer, fix_missing_locations
 
 from functools import wraps
 
+import logging
+
 from .changes import ForChange, InPlaceChange
 
 from .rules import (
@@ -72,7 +74,7 @@ class TFor(NodeTransformer):
             for result in self.resutls:
                 result.target.value = result.r_node
                 self.changed = True
-                print("Applyied:", result)  # TODO logger
+                logging.info(f"applied: {result}")
             # visit again to remove for nodes
             self.visit(self.node)
             # this is neccessary to tell if there are any changes
@@ -80,23 +82,17 @@ class TFor(NodeTransformer):
     
     # Visitor for Assignment nodes
     def visit_Assign(self, node: AST):
+        
         if self.got_results:
             return node
         
-        print('-'*100)
-        print(ast.dump(node, indent=2))
-        print()
-        
-        result = self.rule.change(node)
-        if result:
-            self.resutls.append(result)
-            
-        print('-'*100)
+        if result := self.rule.change(node): self.resutls.append(result)
         
         return node
     
     # Visitor for For nodes
     def visit_For(self, node: AST):
+        
         if self.got_results:
             # remove the node if necessary
             if node in [result.remove for result in self.resutls]:
@@ -120,13 +116,9 @@ class TIf(NodeTransformer):
     
     # Visitor for if nodes
     def visit_If(self, node: AST):
-        print('-'*100)
-        print(ast.dump(node, indent=2))
-        print()
+        log_node(node)
         
-        result = self.rule.change(node)
-        
-        if result:
+        if result := self.rule.change(node):
             self.changed = True
             return result.r_node
         # leave unchanged        
@@ -150,11 +142,9 @@ class TFunctionDef(NodeTransformer):
     
     # visit function definition
     def visit_FunctionDef(self, node: AST):
-        print('-'*100)
-        print(ast.dump(node, indent=2))
+        log_node(node)
         
-        result = self.rule.change(node)
-        if result:
+        if result := self.rule.change(node):
             self.changed = True
             return result.r_node
         # leave unchanged
@@ -176,13 +166,16 @@ class TLogic(NodeTransformer):
     
     # Visitor for unary operators
     def visit_UnaryOp(self, node: AST):
-        print('-'*100)
-        print(ast.dump(node, indent=2))
+        log_node(node)
         
-        result = self.rule.change(node)
-        
-        if result:
+        if result := self.rule.change(node):
             self.changed = True
             return result.r_node
         # leave unchanged
         return node
+
+
+def log_node(node):
+    logging.debug('-'*100)
+    logging.debug(f"\n{ast.dump(node, indent=2)}")
+    logging.debug('-'*100)

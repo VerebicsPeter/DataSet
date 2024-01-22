@@ -1,5 +1,3 @@
-    # TODO: this should handle parsing the ast not the application
-
 import ast
 
 from ast import parse, unparse, dump, iter_child_nodes, AST
@@ -32,29 +30,32 @@ from transformations.equivalent.rules import (
 )
 
 class CustomVisitor(Protocol):
-    changed: True
+    # changed indicates whether the visitor made any changes to the AST
+    changed: bool
     
     def transform_ast(node: AST):
         ...
 
 class TransformationBuilder:
     
-    def __init__(self, initial_ast: AST = None) -> None:
-        self._ast    = initial_ast
-        self.changed = False
-        self.queue: list[CustomVisitor] = []
+    def __len__(self): return len(self._queue)
     
-    def set_ast(self, initial_ast: AST) -> None:
-        self._ast = initial_ast
+    def __init__(self, ast: AST = None) -> None:
+        self._ast = ast
+        self._queue: list[CustomVisitor] = []
+        self.changed = False
+    
+    def set_ast(self, ast: AST) -> None:
+        self._ast = ast
     
     def get_ast(self) -> AST | None: return self._ast
     
     def add_one(self, visitor: NodeVisitor):
-        self.queue.append(visitor)
+        self._queue.append(visitor)
         return self
     
     def add(self, *visitors: NodeVisitor):
-        self.queue.extend(visitors)
+        self._queue.extend(visitors)
         return self
     
     def run(self):
@@ -62,8 +63,8 @@ class TransformationBuilder:
             print("AST needed for running the transformation!")
             return
         
-        while self.queue:
-            visitor = self.queue.pop(0)
+        while self._queue:
+            visitor = self._queue.pop(0)
             visitor.transform_ast(self._ast)
             self.changed = self.changed or visitor.changed
         return self
@@ -74,8 +75,10 @@ class CopyTransformer():
     def __init__(self, ast: AST):
         self.ast = copy.deepcopy(ast)
         self.changed = False
-        
+    
     def change(self) -> str:
+        """Returns the changed source if any changes occured, or an empty string otherwise.
+        """
         if not self.changed:
             return ""
         return unparse(self.ast)
@@ -115,7 +118,7 @@ def safe_parse(source: str):
 # Transformation "presets"
 
 
-def for_to_comprehension(node: AST):
+def for_to_comprehension(node: AST) -> bool:
     t = TransformationBuilder(node)\
         .add(TFor(ForToListComprehension()))\
         .add(TFor(ForToDictComprehension()))\
@@ -125,21 +128,21 @@ def for_to_comprehension(node: AST):
     return t.changed
 
 
-def invert_if(node: AST):
+def invert_if(node: AST) -> bool:
     t = TransformationBuilder(node)\
         .add(TIf(InvertIf()))\
         .run()
     return t.changed
 
 
-def def_guard(node: AST):
+def def_guard(node: AST) -> bool:
     t = TransformationBuilder(node)\
         .add(TFunctionDef(ExtractFunctionDefGuard()))\
         .run()
     return t.changed
 
     
-def logic_rules(node: AST):
+def logic_rules(node: AST) -> bool:
     t = TransformationBuilder(node)\
         .add(TLogic(DoubleNegation()))\
         .add(TLogic(DeMorgan()))\
@@ -147,5 +150,53 @@ def logic_rules(node: AST):
     return t.changed
 
 
-def all_transformations(node: AST):
-    return any([for_to_comprehension(node),def_guard(node),invert_if(node),logic_rules(node)])
+def all_transformations(node: AST) -> bool:
+    t = TransformationBuilder(node)\
+        .add(TFor(ForToListComprehension()))\
+        .add(TFor(ForToDictComprehension()))\
+        .add(TFor(ForToSetComprehension()))\
+        .add(TFor(ForToSum()))\
+        .add(TFunctionDef(ExtractFunctionDefGuard()))\
+        .add(TIf(InvertIf()))\
+        .add(TLogic(DoubleNegation()))\
+        .add(TLogic(DeMorgan()))\
+        .run()
+    return t.changed
+
+
+def get_all_visitors() -> list:
+    visitors = list()
+    
+    visitors.append({
+        "name": "For to list comprehension", "visitor": TFor(ForToListComprehension())
+    })
+    
+    visitors.append({
+        "name": "For to dict comprehension", "visitor": TFor(ForToDictComprehension())
+    })
+    
+    visitors.append({
+        "name": "For to set comprehension", "visitor": TFor(ForToSetComprehension())
+    })
+    
+    visitors.append({
+        "name": "For to sum", "visitor": TFor(ForToSum())
+    })
+    
+    visitors.append({
+        "name": "Extract guard", "visitor": TFunctionDef(ExtractFunctionDefGuard())
+    })
+    
+    visitors.append({
+        "name": "Invert if", "visitor": TIf(InvertIf())
+    })
+    
+    visitors.append({
+        "name": "Double negation", "visitor": TIf(InvertIf())
+    })
+    
+    visitors.append({
+        "name": "De Morgan's law", "visitor": TIf(InvertIf())
+    })
+    
+    return visitors

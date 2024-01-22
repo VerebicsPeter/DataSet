@@ -2,21 +2,23 @@ import os
 
 import autopep8
 
-from pymongo import MongoClient
-
 from persistance.persistor import RefactoringStore
 
 from transformations import transformation_api as api
 
+import db
+
 import utils
 
 if __name__ == "__main__":
-    # create client
-    client = MongoClient()
+    client = db.connect("localhost", 27017)
+    
+    if not client: exit(1)
+    
     # select database
-    db = client['refactoring']
+    database = client['refactoring']
     # select collection from database
-    scripts_collection = db['equi_tuples']
+    collection = database['equivalent']
     
     # path to this script
     FILE = __file__
@@ -58,8 +60,7 @@ if __name__ == "__main__":
         # AST transformations
         
         parsed = api.safe_parse(script['source'])
-        if not parsed:
-            continue
+        if not parsed: continue
         
         store.add_result(
             {
@@ -83,9 +84,20 @@ if __name__ == "__main__":
             }, strict=False
         )
         
+        store.add_result(
+            {
+                "method": "autopep+ast_all_but_invert_if",
+                "result": autopep8.fix_code(
+                    api.CopyTransformer(parsed)
+                    .apply_for_to_comprehension().apply_def_guard().apply_logic_rules()
+                    .change()
+                )
+            }, strict=False
+        )
+        
         # TODO: add more refactorings here
         
         print(' --- store ID:', store.id)
         print(' --- number of results:', len(store.results))
 
-        store.save(scripts_collection)
+        store.save(collection)
