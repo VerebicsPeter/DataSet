@@ -82,41 +82,40 @@ class CopyTransformer():
         if not self.changed:
             return ""
         return unparse(self.ast)
-
-    def apply_for_to_comprehension(self):
-        diff= for_to_comprehension(self.ast)
-        self.changed = self.changed or diff
-        return self
-
-    def apply_invert_if(self):
-        diff= invert_if(self.ast)
-        self.changed = self.changed or diff
-        return self
-    
-    def apply_def_guard(self):
-        diff= def_guard(self.ast)
-        self.changed = self.changed or diff
-        return self
-    
-    def apply_logic_rules(self):
-        diff= logic_rules(self.ast)
-        self.changed = self.changed or diff
-        return self
     
     def apply_all(self):
         diff= all_transformations(self.ast)
         self.changed = self.changed or diff
         return self
 
+    def apply_visitors(self, visitors):
+        diff= transform(self.ast, visitors)
+        self.changed = self.changed or diff
+        return self
+
+    def apply_preset(self, function):
+        diff= function(self.ast)
+        self.changed = self.changed or diff
+        return self
 
 def safe_parse(source: str):
     try:
         return ast.parse(source)
     except Exception as exception: print(exception)
 
+# Transformations
+
+def all_transformations(node: AST) -> bool:
+    t = TransformationBuilder(node)\
+        .add(*[create_visitor(name) for name in all_visitor_names()])\
+        .run()
+    return t.changed
+
+def transform(node: AST, visitors) -> bool:
+    t = TransformationBuilder(node).add(*visitors).run()
+    return t.changed
 
 # Transformation "presets"
-
 
 def for_to_comprehension(node: AST) -> bool:
     t = TransformationBuilder(node)\
@@ -127,20 +126,17 @@ def for_to_comprehension(node: AST) -> bool:
         .run()
     return t.changed
 
-
 def invert_if(node: AST) -> bool:
     t = TransformationBuilder(node)\
         .add(TIf(InvertIf()))\
         .run()
     return t.changed
 
-
 def def_guard(node: AST) -> bool:
     t = TransformationBuilder(node)\
         .add(TFunctionDef(ExtractFunctionDefGuard()))\
         .run()
     return t.changed
-
     
 def logic_rules(node: AST) -> bool:
     t = TransformationBuilder(node)\
@@ -149,54 +145,36 @@ def logic_rules(node: AST) -> bool:
         .run()
     return t.changed
 
+# Helpers
 
-def all_transformations(node: AST) -> bool:
-    t = TransformationBuilder(node)\
-        .add(TFor(ForToListComprehension()))\
-        .add(TFor(ForToDictComprehension()))\
-        .add(TFor(ForToSetComprehension()))\
-        .add(TFor(ForToSum()))\
-        .add(TFunctionDef(ExtractFunctionDefGuard()))\
-        .add(TIf(InvertIf()))\
-        .add(TLogic(DoubleNegation()))\
-        .add(TLogic(DeMorgan()))\
-        .run()
-    return t.changed
+def all_visitor_names() -> list[str]:
+    return [
+        "For to list comprehension",
+        "For to dict comprehension",
+        "For to set comprehension",
+        "For to sum",
+        "Extract guard",
+        "Invert if",
+        "Double negation",
+        "De Morgan's law",
+    ]
 
-
-def get_all_visitors() -> list:
-    visitors = list()
-    
-    visitors.append({
-        "name": "For to list comprehension", "visitor": TFor(ForToListComprehension())
-    })
-    
-    visitors.append({
-        "name": "For to dict comprehension", "visitor": TFor(ForToDictComprehension())
-    })
-    
-    visitors.append({
-        "name": "For to set comprehension", "visitor": TFor(ForToSetComprehension())
-    })
-    
-    visitors.append({
-        "name": "For to sum", "visitor": TFor(ForToSum())
-    })
-    
-    visitors.append({
-        "name": "Extract guard", "visitor": TFunctionDef(ExtractFunctionDefGuard())
-    })
-    
-    visitors.append({
-        "name": "Invert if", "visitor": TIf(InvertIf())
-    })
-    
-    visitors.append({
-        "name": "Double negation", "visitor": TIf(InvertIf())
-    })
-    
-    visitors.append({
-        "name": "De Morgan's law", "visitor": TIf(InvertIf())
-    })
-    
-    return visitors
+def create_visitor(name: str):
+    if name == "For to list comprehension":
+        return TFor(ForToListComprehension())
+    elif name == "For to dict comprehension":
+        return TFor(ForToDictComprehension())
+    elif name == "For to set comprehension":
+        return TFor(ForToSetComprehension())
+    elif name == "For to sum":
+        return TFor(ForToSum())
+    elif name == "Extract guard":
+        return TFunctionDef(ExtractFunctionDefGuard())
+    elif name == "Invert if":
+        return TIf(InvertIf())
+    elif name == "Double negation":
+        return TLogic(DoubleNegation())
+    elif name == "De Morgan's law":
+        return TLogic(DeMorgan())
+    else:
+        raise ValueError(f"Unknown visitor name: {name}")

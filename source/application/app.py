@@ -1,6 +1,6 @@
     # TODO: have the rule selector thing be below the refactoring tab, align the buttons horizontally!
 
-from dataclasses import dataclass
+from typing import Protocol
 
 import logging
 
@@ -17,6 +17,20 @@ import uuid  # for generating generating treeview ids
 from graphviz import Digraph  # for rendering graphs
 
 from transformations import transformation_api as api
+
+
+class Observable(Protocol):
+    @classmethod
+    def attach(observer):
+        ...
+    @classmethod
+    def notify():
+        ...
+
+
+class Observer(Protocol):
+    def on_update(self):
+        ...
 
 class Menu(ttk.Frame):
     def __init__(self, parent: tk.Tk):
@@ -88,26 +102,14 @@ class TreeView(ttk.Frame):
         self.treeview.see(self.data[0][1])
 
 
-class RuleSelector(ttk.Frame):
-    def __init__(self, parent):
-        super().__init__(parent)
-        
-        options = [ visitor['name'] for visitor in api.get_all_visitors() ]
-        
-        self.lblRules = ttk.Label(self, text="Add rule:")
-        self.lblRules.pack(side="left", padx=5, pady=5)
-        self.boxRules = ttk.Combobox(self, values=options)
-        self.boxRules.pack(side="left", padx=5, pady=5)
-
-
 class SourceText(ttk.Frame):
     def __init__(self, parent):
         super().__init__(parent)
 
-        self.scrollBar = ttk.Scrollbar(self)
-        self.scrollBar.pack(side="right", fill="y")
+        self.scrollbar = ttk.Scrollbar(self)
+        self.scrollbar.pack(side="right", fill="y")
 
-        self.textbox = tk.Text(self, height=self.winfo_height(), width=self.winfo_width(),
+        self.textbox = tk.Text(self, height=self.winfo_height(),
             font=('FreeMono', 14)
         )
         self.textbox.tag_config("keyword", foreground="purple")
@@ -116,10 +118,10 @@ class SourceText(ttk.Frame):
         self.textbox.bind("<KeyRelease>", self.on_update)
         self.textbox.pack(fill="both", expand=True)
         
-        self.scrollBar.config(command=self.textbox.yview)
-        self.textbox['yscrollcommand'] = self.scrollBar.set
+        self.scrollbar.config(command=self.textbox.yview)
+        self.textbox['yscrollcommand'] = self.scrollbar.set
         
-    def on_update(self, event):
+    def on_update(self, event = None):
         SyntaxHighlighter.highlight(self.textbox)
 
 
@@ -130,7 +132,7 @@ class ResultText(ttk.Frame):
         self.scrollBar = ttk.Scrollbar(self)
         self.scrollBar.pack(side="right", fill="y")
 
-        self.textbox = tk.Text(self, height=self.winfo_height(), width=self.winfo_width(),
+        self.textbox = tk.Text(self, height=self.winfo_height(),
             font=('FreeMono', 14)
         )
         self.textbox.config(
@@ -148,11 +150,6 @@ class ResultText(ttk.Frame):
         SyntaxHighlighter.highlight(self.textbox)
 
 
-@dataclass
-class TransformView():
-    text: SourceText | ResultText; treeview: TreeView
-
-
 class RefactorTab(ttk.Frame):
     def __init__(self, parent: tk.Tk):
         super().__init__(parent)
@@ -165,21 +162,18 @@ class RefactorTab(ttk.Frame):
         self.columnconfigure(1, weight=1)
         self.columnconfigure(2, weight=1)
         self.columnconfigure(3, weight=1)
-        
         # source widgets
         self.source_text_widget = SourceText(self)
         self.source_text_widget.grid(row=0, column=0, columnspan=2, sticky="nsew")
         
         self.source_tree_widget = TreeView(self, "source")
         self.source_tree_widget.grid(row=1, column=0, columnspan=2, sticky="nsew")
-        
         # result widgets
         self.result_text_widget = ResultText(self)
         self.result_text_widget.grid(row=0, column=2, columnspan=2, sticky="nsew")
         
         self.result_tree_widget = TreeView(self, "result")
         self.result_tree_widget.grid(row=1, column=2, columnspan=2, sticky="nsew")
-        
         # show source ast button
         self.show_ast_button = ttk.Button(self, text="Show AST", width=20,
             command=self.ast_show_source
@@ -200,35 +194,26 @@ class RefactorTab(ttk.Frame):
             command=self.ast_show_result
         ).grid(row=2, column=3, pady=10)
         
-        # dict of widgets
-        self.views: dict[str, TransformView] = {}
-        
-        self.views['source'] = TransformView(
-            self.source_text_widget,
-            self.source_tree_widget
-        )
-        self.views['result'] = TransformView(
-            self.result_text_widget,
-            self.result_tree_widget
-        )
-        
     def ast_parse(self, target: str) -> None:
-        if target not in {'source', 'result'}: return
-        text: str = self.views[target].text.textbox.get('1.0', tk.END)
-        # parse new ast in the state object
-        AppState.parse_ast(text,target)
+        text: str = self.source_text_widget.textbox.get('1.0', tk.END)
+        # parse new ast into the state object
+        AppState.parse_ast(text, target)
         # update the tree view
-        self.views[target].treeview.on_update()
+        self.source_tree_widget.on_update()
 
     def ast_transform(self) -> None:
-        if AppState.source_ast:
-            # TODO: selection for transformations only apply all if no visitors added to builer...
-            transformer = api.CopyTransformer(AppState.source_ast)
-            transformer.apply_all()
-            
-            AppState.result_ast = transformer.ast
+        if AppState.ast_source:
+            visitors = AppState.visitors
+            if len(visitors):
+                AppState.ast_result = api.CopyTransformer(AppState.ast_source)\
+                    .apply_visitors(visitors)\
+                    .ast
+            else:
+                AppState.ast_result = api.CopyTransformer(AppState.ast_source)\
+                    .apply_all()\
+                    .ast
             # maybe use a try block
-            unparsed = api.unparse(AppState.result_ast)
+            unparsed = api.unparse(AppState.ast_result)
             # update text widget
             self.result_text_widget.textbox['state'] = 'normal'
             self.result_text_widget.textbox.delete(1.0   ,   tk.END)
@@ -241,14 +226,14 @@ class RefactorTab(ttk.Frame):
             messagebox.showinfo(title="Transform", message="No AST provided.")
 
     def ast_show_source(self) -> None:
-        if AppState.source_ast:
-            DigraphMaker.make(AppState.source_ast)
+        if AppState.ast_source:
+            DigraphMaker.make(AppState.ast_source)
         else:
             messagebox.showinfo(title="Show AST", message="No AST provided.")
 
     def ast_show_result(self) -> None:
-        if AppState.result_ast: 
-            DigraphMaker.make(AppState.result_ast)
+        if AppState.ast_result: 
+            DigraphMaker.make(AppState.ast_result)
         else:
             messagebox.showinfo(title="Show AST", message="No AST generated.")
 
@@ -256,8 +241,7 @@ class RefactorTab(ttk.Frame):
 class DatabaseTab(ttk.Frame):
     def __init__(self, parent):
         super().__init__(parent)
-        self.placeholder1 = ttk.Label(self,
-            text='Welcome to DB access page!')\
+        self.placeholder1 = ttk.Label(self,text='Welcome to DB access page!')\
             .pack(ipadx=10, ipady=10)
         self.placeholder2 = ttk.Label(self,
             text=f'Connection: {AppState.connection}' + ', ' + f'Documents: {AppState.get_count()}')\
@@ -267,29 +251,68 @@ class DatabaseTab(ttk.Frame):
 class SettingsTab(ttk.Frame):
     def __init__(self, parent):
         super().__init__(parent)
-        self.ruleSelector = RuleSelector(self)
-        self.ruleSelector.pack(side="left", padx=5, pady=5, anchor="nw")
+        
+        rules = [ name for name in api.all_visitor_names() ]
+        
+        self.rules = ttk.Labelframe(self, text="Custom Rules")
+        self.rules.grid(row=0, column=0, padx=10, pady=10)
+        
+        self.labelRule = ttk.Label(self.rules, text="New rule")
+        self.labelRule.grid(row=0, column=0, padx=10, pady=5, sticky="ew")
+        
+        self.comboRules = ttk.Combobox(self.rules, values=rules)
+        self.comboRules.grid(row=1, column=0, padx=10, pady=5)
+        self.comboRules["state"] = "readonly"
+        self.comboRules.set(self.comboRules["values"][0])
+
+        self.addButton = ttk.Button(self.rules, text="Add rule", command=self.add_rule)
+        self.addButton.grid(row=2, column=0, padx=10, pady=5, sticky="w")
+        
+        self.labelRules = ttk.Label(self.rules, text="Rules")
+        self.labelRules.grid(row=3, column=0, padx=10, pady=5, sticky="ew")
+        
+        self.listRules = tk.Listbox(self.rules)
+        self.listRules.grid(row=4, column=0, padx=10, pady=5, sticky="ew")
+
+        self.clearButton = ttk.Button(self.rules, text="Clear rules", command=self.clear_rules)
+        self.clearButton.grid(row=5, column=0, padx=10, pady=(5, 10), sticky="w")
+        self.clearButton["state"] = "disabled"
+    
+    def add_rule(self):
+        self.listRules.insert(tk.END, name := self.comboRules.get())
+        AppState.add_visitor(api.create_visitor(name))
+        self.clearButton["state"] = "normal"
+        
+    def clear_rules(self):
+        if not len(AppState.visitors): return
+        AppState.clear_visitors()
+        self.listRules.delete(0, tk.END)
+        self.clearButton["state"] = "disabled"
 
 
 class StatusBar(ttk.Frame):
     def __init__(self, parent):
         super().__init__(parent)
         # left
-        ttk.Separator(self, orient='vertical')\
-            .pack(side="left", padx=10)
-        self.lblConnection = ttk.Label(self, text=f"Database: {AppState.get_connection()}")\
-            .pack(side="left", padx=0, pady=3)
-        ttk.Separator(self, orient='vertical')\
-            .pack(side="left", padx=10)
+        ttk.Separator(self, orient='vertical').pack(side="left", padx=10)
+        self.labelSettings = ttk.Label(self, text=f"Settings: {AppState.get_settings()}")
+        self.labelSettings.pack(side="left", padx=0, pady=3)
+        ttk.Separator(self, orient='vertical').pack(side="left", padx=10)
+        
         # right
-        ttk.Sizegrip(self)\
-            .pack(side="right", anchor="se")
-        ttk.Separator(self, orient='vertical')\
-            .pack(side="right", padx=10)
-        self.lblSettings = ttk.Label(self, text=f"Settings: {AppState.get_settings()}")\
-            .pack(side="right", padx=0, pady=3)
-        ttk.Separator(self, orient='vertical')\
-            .pack(side="right", padx=10)
+        ttk.Sizegrip(self).pack(side="right", anchor="se")
+        
+        ttk.Separator(self, orient='vertical').pack(side="right", padx=10)
+        self.labelConnection = ttk.Label(self, text=f"Database: {AppState.get_connection()}")
+        self.labelConnection.pack(side="right", padx=0, pady=3)
+        ttk.Separator(self, orient='vertical').pack(side="right", padx=10)
+        
+        # add observable
+        AppState.attach(self)
+    
+    def on_update(self):
+        self.labelConnection["text"] = f"Database: {AppState.get_connection()}"
+        self.labelSettings  ["text"] = f"Settings: {AppState.get_settings()}"
 
 
 class App(tk.Tk):
@@ -308,12 +331,12 @@ class App(tk.Tk):
         
         self.refactorTab = RefactorTab(self.tabs)
         self.refactorTab.pack(fill="both", expand=True)
-        self.databaseTab = DatabaseTab(self.tabs)
         self.settingsTab = SettingsTab(self.tabs)
+        self.databaseTab = DatabaseTab(self.tabs)
         
         self.tabs.add(self.refactorTab, text="Refactor")
-        self.tabs.add(self.databaseTab, text="Database")
         self.tabs.add(self.settingsTab, text="Settings")
+        self.tabs.add(self.databaseTab, text="Database")
         # status bar
         self.statusBar = StatusBar(self)
         self.statusBar.pack(side="bottom", fill="x")
@@ -325,11 +348,12 @@ class App(tk.Tk):
     def run(self): self.mainloop()
 
 
-class AppState:
+class AppState(Observable):
     connection = None
-    source_ast = None
-    result_ast = None
-    visitorQueue: list[api.NodeVisitor] = []
+    ast_source = None
+    ast_result = None
+    observers: list[Observer] = []
+    visitors: list[api.NodeVisitor] = []
     
     @classmethod
     def set_connection(cls, connection):
@@ -347,8 +371,8 @@ class AppState:
     
     @classmethod
     def get_settings(cls) -> str:
-        return "custom" if len(cls.visitorQueue) else "default"
-
+        return "custom" if len(cls.visitors) else "default (all)"
+    
     @classmethod
     def parse_ast(cls, source: str, target: str) -> None:
         if target not in {'source', 'result'}: return
@@ -366,9 +390,9 @@ class AppState:
             return
         
         if target=='source':
-            cls.source_ast = parsed
+            cls.ast_source = parsed
         if target=='result':
-            cls.result_ast = parsed
+            cls.ast_result = parsed
         
         logging.debug('-'*100)
         logging.debug(parsed)
@@ -377,16 +401,28 @@ class AppState:
         logging.debug('-'*100)
     
     @classmethod
-    def queue_add(cls) -> None:
+    def attach(cls, observer):
+        cls.observers.append(observer)
+
+    @classmethod
+    def notify(cls):
+        for observer in cls.observers:
+            observer.on_update()
+    
+    @classmethod
+    def add_visitor(cls, visitor) -> None:
+        cls.visitors.append(visitor)
+        cls.notify()
+    
+    @classmethod
+    def pop_visitor(cls) -> object:
         # TODO
         pass
     
     @classmethod
-    def queue_pop(cls) -> None:
-        if not cls.source_ast:
-            return False
-        # TODO
-        pass
+    def clear_visitors(cls):
+        cls.visitors.clear()
+        cls.notify()
 
     @classmethod
     def treeview_data(cls, target: str) -> list:
@@ -394,8 +430,8 @@ class AppState:
         
         root = None
         if target not in {'source', 'result'}: return data
-        if target == 'source': root = cls.source_ast
-        if target == 'result': root = cls.result_ast
+        if target == 'source': root = cls.ast_source
+        if target == 'result': root = cls.ast_result
         
         if not root: print("No AST provided."); return data
         
