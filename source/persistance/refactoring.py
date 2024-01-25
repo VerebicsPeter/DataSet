@@ -1,7 +1,32 @@
-from pymongo.collection import Collection 
+from pymongo.collection import Collection
+from pymongo import MongoClient
+
+
+class Client:
+    __client : MongoClient = None
+    # collection
+    equivalent : Collection = None
+    
+    @classmethod
+    def set_client(cls, client):
+        cls.__client   = client
+        cls.equivalent = client.refactoring.equivalent
+    
+    @classmethod
+    def get_client(cls): return cls.__client
+    
+    @classmethod
+    def get_client_info(cls):
+        return f"{cls.__client.HOST}:{cls.__client.PORT}" if cls.__client else ""
+    
+    @classmethod
+    def count_documents(cls):
+        if     cls.equivalent is None: return
+        return cls.equivalent.count_documents({})
+
 
 class RefactoringStore:
-
+    
     def __init__(self, id: str, source: str):
         self.id      = id
         self.source  = source
@@ -15,10 +40,10 @@ class RefactoringStore:
             return
         if (strict and self.source == result['result']):
             return
-        if not result['result']:  # return if the result is an empty string
+        if not result['result']:  # return if the result is empty
             return
         self.results.append(result)
-    
+
 
     def save(self, collection: Collection) -> None:
         # return if there is nothing to save

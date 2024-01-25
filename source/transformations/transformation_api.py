@@ -98,6 +98,7 @@ class CopyTransformer():
         self.changed = self.changed or diff
         return self
 
+
 def safe_parse(source: str):
     try:
         return ast.parse(source)

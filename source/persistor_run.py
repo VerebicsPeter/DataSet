@@ -1,14 +1,14 @@
+#----------------
 import os
-
 import autopep8
-
-from persistance.persistor import RefactoringStore
-
-from transformations import transformation_api as api
-
-import db
-
+#----------------
 import utils
+#----------------
+import db
+from source.persistance.refactoring import RefactoringStore
+#----------------
+from transformations import transformation_api as api
+#----------------
 
 if __name__ == "__main__":
     client = db.connect("localhost", 27017)
@@ -67,7 +67,7 @@ if __name__ == "__main__":
                 "method": "autopep+for_to_comp",
                 "result": autopep8.fix_code(
                     api.CopyTransformer(parsed)
-                    .apply_for_to_comprehension()
+                    .apply_preset(api.for_to_comprehension)
                     .change()
                 )
             }, strict=True
@@ -84,12 +84,15 @@ if __name__ == "__main__":
             }, strict=False
         )
         
+        rules = api.all_visitor_names()
+        rules.remove("Invert if")
         store.add_result(
             {
                 "method": "autopep+ast_all_but_invert_if",
                 "result": autopep8.fix_code(
                     api.CopyTransformer(parsed)
-                    .apply_for_to_comprehension().apply_def_guard().apply_logic_rules()
+                    .apply_visitors([api.create_visitor(name) 
+                                     for name in rules])
                     .change()
                 )
             }, strict=False
