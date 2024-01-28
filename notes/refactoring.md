@@ -1,6 +1,6 @@
 # Refactoring ideas
 
-## Refactorings to implement
+## 'Advanced' refactorings to implement
 
 - extract variable (extract a complex expression into a variable)
 - extract methods/functions (extracting a block of code into a new funtion)
@@ -12,11 +12,11 @@
 ## Refactoring tools to try
 
 - IDE's built in tools
-- `Bowler`, `Rope`, maybe `Coala`
+- `Bowler`
+- `Coala`
 - Python fixers like `modernize`
 - `PyUpgrade`
-- Code formatters like `autopep8` or `black`
-- Python IDE `PyCharm` (it supports auto refactoring)
+- formatters like `autopep8` or `black`
 
 ## Storing data
 

@@ -91,8 +91,7 @@ if __name__ == "__main__":
                 "method": "autopep+ast_all_but_invert_if",
                 "result": autopep8.fix_code(
                     api.CopyTransformer(parsed)
-                    .apply_visitors([api.create_visitor(name) 
-                                     for name in rules])
+                    .apply_visitors([api.create_visitor(name) for name in rules])
                     .change()
                 )
             }, strict=False

@@ -6,11 +6,26 @@ from typing import Protocol
 from transformations import transformation_api as api
 #----------------
 
+
+def logger(func):
+    def wrapper(*args, **kwargs):
+        logging.debug('-'*100)
+        if log := func(*args, **kwargs): logging.debug(log)
+        logging.debug('-'*100)
+    return wrapper
+
+
+class MonoState:
+    # shared state of all objects
+    __shared = {}
+    
+    def __init__(self) -> None:
+        self.__dict__ = self.__shared
+
+
 class Observable(Protocol):
-    @classmethod
     def attach(observer):
         ...
-    @classmethod
     def notify():
         ...
 
@@ -20,85 +35,86 @@ class Observer(Protocol):
         ...
 
 
-class AppState(Observable):
-    ast_source = None
-    ast_result = None
-    observers: list[Observer] = []
-    visitors: list[api.NodeVisitor] = []
+class AppState(MonoState, Observable):
     
-    @classmethod
-    def get_settings(cls) -> str:
-        return "custom" if len(cls.visitors) else "default (all)"
+    def __init__(self):
+        super().__init__()
+        # initialize the state of each attribute if not present
+        self.__init_state()
     
-    @classmethod
-    def parse_ast(cls, source: str, target: str) -> None:
+    
+    def __init_state(self):
+        if not hasattr(self, "visitors"): self.visitors : list[api.NodeVisitor] = []
+        if not hasattr(self, "ast_source"): self.ast_source : api.AST = None
+        if not hasattr(self, "ast_result"): self.ast_result : api.AST = None
+        if not hasattr(self, "observers"): self.observers : list[Observer] = []
+
+
+    @logger
+    def ast_parse(self, source: str, target: str) -> api.AST:
         if target not in {'source', 'result'}: return
         
-        try:
-            parsed = api.parse(source)
+        try: parsed = api.parse(source)
         except Exception as exception:
             print('Error while parsing:')
             print(exception)
             raise exception
         
-        if target=='source':
-            cls.ast_source = parsed
-        if target=='result':
-            cls.ast_result = parsed
-        
-        logging.debug('-'*100)
-        logging.debug(parsed)
-        logging.debug('-'*100)
-        logging.debug(f"\n{api.dump(parsed, indent=2)}")
-        logging.debug('-'*100)
+        if target=='source': self.ast_source = parsed
+        if target=='result': self.ast_result = parsed
+            
+        return parsed
     
-    @classmethod
-    def transform_ast(cls) -> str:
-        if visitors:= cls.visitors:
-            AppState.ast_result = api.CopyTransformer(AppState.ast_source)\
+
+    def ast_transform(self) -> str:
+        if visitors:= self.visitors:
+            self.ast_result = api.CopyTransformer(self.ast_source)\
                 .apply_visitors(visitors)\
                 .ast
         else:
-            AppState.ast_result = api.CopyTransformer(AppState.ast_source)\
+            self.ast_result = api.CopyTransformer(self.ast_source)\
                 .apply_all()\
                 .ast
-        # maybe use a try block
-        return api.unparse(AppState.ast_result)
-    
-    @classmethod
-    def attach(cls, observer):
-        cls.observers.append(observer)
+        # NOTE: maybe put this in a try block
+        return api.unparse(self.ast_result)
 
-    @classmethod
-    def notify(cls):
-        for observer in cls.observers:
+
+    def attach(self, observer):
+        self.observers.append(observer)
+
+
+    def notify(self):
+        for observer in self.observers:
             observer.on_update()
     
-    @classmethod
-    def add_visitor(cls, name: str) -> None:
-        visitor =api.create_visitor(name)
-        # TODO: error handling
-        cls.visitors.append(visitor)
-        cls.notify()
     
-    @classmethod
-    def pop_visitor(cls) -> object:
+    def add_visitor(self, name: str) -> None:
+        visitor = api.create_visitor(name)
+        # TODO: error handling
+        self.visitors.append(visitor)
+        self.notify()
+    
+
+    def pop_visitor(self) -> object:
         # TODO
         pass
     
-    @classmethod
-    def clear_visitors(cls):
-        cls.visitors.clear()
-        cls.notify()
+    
+    def clear_visitors(self):
+        self.visitors.clear()
+        self.notify()
 
-    @classmethod
-    def treeview_data(cls, target: str) -> list:
+
+    def settings_info(self) -> str:
+        return "custom" if len(self.visitors) else "default (all)"
+    
+
+    def treeview_data(self, target: str) -> list:
         data = []
-        
         root = None
         if target not in {'source', 'result'}: return data
-        if target == 'source': root = cls.ast_source
-        if target == 'result': root = cls.ast_result
+        if target == 'source': root = self.ast_source
+        if target == 'result': root = self.ast_result
         
         if not root: print("No AST provided."); return data
         

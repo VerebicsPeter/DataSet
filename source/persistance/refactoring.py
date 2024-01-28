@@ -1,3 +1,5 @@
+    # TODO use proper monostate pattern
+
 from pymongo.collection import Collection
 from pymongo import MongoClient
 
@@ -9,8 +11,11 @@ class Client:
     
     @classmethod
     def set_client(cls, client):
-        cls.__client   = client
-        cls.equivalent = client.refactoring.equivalent
+        try:
+            cls.__client   = client
+            cls.equivalent = client.refactoring.equivalent
+        except Exception as err:
+            print(err)
     
     @classmethod
     def get_client(cls): return cls.__client

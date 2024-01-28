@@ -42,6 +42,11 @@ class SyntaxHighlighter:
     # compiled regex
     regex_keyword = re.compile(_keyword_pattern)
     regex_strings = re.compile(_strings_pattern)
+    # color scheme
+    colors = {
+        "keyword": "deep pink",
+        "strings": "goldenrod",
+    }
 
     # NOTE: this is slow
     @classmethod
@@ -57,3 +62,9 @@ class SyntaxHighlighter:
         for matched in cls.regex_strings.finditer(text_content):
             start, end = f"1.0+{matched.start()}c", f"1.0+{matched.end()}c"
             textbox.tag_add("strings", start, end)
+
+    @classmethod
+    def set_colors(cls, textbox: Text):
+        for key in cls.colors:
+            textbox.tag_config(key, foreground=cls.colors[key])
+    

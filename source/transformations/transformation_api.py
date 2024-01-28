@@ -11,7 +11,7 @@ from transformations.transformation import (
 )
 
 from transformations.equivalent.visitors import (
-    TFor, TIf, TFunctionDef, TLogic
+    TFor, TSimple, TFor2
 )
 
 from transformations.equivalent.rules import (
@@ -23,7 +23,7 @@ from transformations.equivalent.rules import (
     # if rules
     InvertIf,
     # function def rules
-    ExtractFunctionDefGuard,
+    GuardDef,
     # logic rules
     DoubleNegation,
     DeMorgan
@@ -100,8 +100,7 @@ class CopyTransformer():
 
 
 def safe_parse(source: str):
-    try:
-        return ast.parse(source)
+    try: return ast.parse(source)
     except Exception as exception: print(exception)
 
 # Transformations
@@ -129,53 +128,38 @@ def for_to_comprehension(node: AST) -> bool:
 
 def invert_if(node: AST) -> bool:
     t = TransformationBuilder(node)\
-        .add(TIf(InvertIf()))\
+        .add(TSimple(InvertIf()))\
         .run()
     return t.changed
 
 def def_guard(node: AST) -> bool:
     t = TransformationBuilder(node)\
-        .add(TFunctionDef(ExtractFunctionDefGuard()))\
+        .add(TSimple(GuardDef()))\
         .run()
     return t.changed
     
 def logic_rules(node: AST) -> bool:
     t = TransformationBuilder(node)\
-        .add(TLogic(DoubleNegation()))\
-        .add(TLogic(DeMorgan()))\
+        .add(TSimple(DoubleNegation()))\
+        .add(TSimple(DeMorgan()))\
         .run()
     return t.changed
 
 # Helpers
 
-def all_visitor_names() -> list[str]:
-    return [
-        "For to list comprehension",
-        "For to dict comprehension",
-        "For to set comprehension",
-        "For to sum",
-        "Extract guard",
-        "Invert if",
-        "Double negation",
-        "De Morgan's law",
-    ]
+all_visitors = {
+    "For to list comprehension": lambda: TFor2(),
+    "For to dict comprehension": lambda: TFor(ForToDictComprehension()),
+    "For to set comprehension":  lambda: TFor(ForToSetComprehension()),
+    "For to sum":                lambda: TFor(ForToSum()),
+    "Extract guard":             lambda: TSimple(GuardDef()),
+    "Invert if":                 lambda: TSimple(InvertIf()),
+    "Double negation":           lambda: TSimple(DoubleNegation()),
+    "De Morgan's law":           lambda: TSimple(DeMorgan()),
+}
+
+def all_visitor_names() -> list[str]: return list(all_visitors.keys())
 
 def create_visitor(name: str):
-    if name == "For to list comprehension":
-        return TFor(ForToListComprehension())
-    elif name == "For to dict comprehension":
-        return TFor(ForToDictComprehension())
-    elif name == "For to set comprehension":
-        return TFor(ForToSetComprehension())
-    elif name == "For to sum":
-        return TFor(ForToSum())
-    elif name == "Extract guard":
-        return TFunctionDef(ExtractFunctionDefGuard())
-    elif name == "Invert if":
-        return TIf(InvertIf())
-    elif name == "Double negation":
-        return TLogic(DoubleNegation())
-    elif name == "De Morgan's law":
-        return TLogic(DeMorgan())
-    else:
-        raise ValueError(f"Unknown visitor name: {name}")
+    if visitor := all_visitors.get(name): return visitor()
+    raise ValueError(f"Unknown visitor name: {name}")

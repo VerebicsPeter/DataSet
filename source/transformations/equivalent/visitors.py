@@ -1,22 +1,22 @@
-
 import ast
 
-from ast import AST, NodeVisitor, NodeTransformer, fix_missing_locations
+from ast import AST, For, NodeVisitor, NodeTransformer, fix_missing_locations
 
 from functools import wraps
 
 import logging
 
-from .changes import ForChange, InPlaceChange
+from .changes import ReduceFor, InPlace
 
 from .rules import (
+    ForRuleMaker,
     ForToListComprehension,
     ForToDictComprehension,
     ForToSetComprehension,
     ForToSum,
     ForToSumNumpy,
     InvertIf,
-    ExtractFunctionDefGuard,
+    GuardDef,
     DoubleNegation,
     DeMorgan,
 )
@@ -35,22 +35,21 @@ def context_parent(method):
 class TFor(NodeTransformer):
     
     def __init__(
-        self,rule: ForToListComprehension
-                 | ForToDictComprehension
-                 | ForToSetComprehension
-                 | ForToSum
-                 | ForToSumNumpy
-        ):
+        self,
+        rule: ForToListComprehension
+            | ForToDictComprehension
+            | ForToSetComprehension
+            | ForToSum
+            | ForToSumNumpy
+    ):
         self.rule = rule
+        self.changed = False
         # node on which the transformer last ran
         self.node = None
-        # init changed 
-        self.changed = False
         # init results
-        self.resutls : list[ForChange] = []
+        self.resutls : list[ReduceFor] = []
         self.got_results = False
-        
-        
+    
     # Transform the AST in one call
     @context_parent
     def transform_ast(self, node: AST):
@@ -64,7 +63,7 @@ class TFor(NodeTransformer):
         if self.node:
             self.resutls = []
             self.got_results = False
-            # first visit to gather results
+            # NOTE: first visit to gather results
             self.visit(self.node)
             self.got_results = True
     
@@ -72,27 +71,23 @@ class TFor(NodeTransformer):
     def __set_results(self) -> None:
         if self.got_results:
             for result in self.resutls:
-                result.target.value = result.r_node
+                result.target.value = result.changed
                 self.changed = True
                 logging.info(f"applied: {result}")
-            # visit again to remove for nodes
+            # NOTE: second visit to remove for nodes
             self.visit(self.node)
             # this is neccessary to tell if there are any changes
             self.changed = bool(self.resutls)
     
     # Visitor for Assignment nodes
     def visit_Assign(self, node: AST):
-        
         if self.got_results:
             return node
-        
         if result := self.rule.change(node): self.resutls.append(result)
-        
         return node
     
     # Visitor for For nodes
     def visit_For(self, node: AST):
-        
         if self.got_results:
             # remove the node if necessary
             if node in [result.remove for result in self.resutls]:
@@ -101,77 +96,74 @@ class TFor(NodeTransformer):
         return node
 
 
-class TIf(NodeTransformer):
-    
-    def __init__(
-        self,rule: InvertIf
-        ):
-        self.rule = rule
+class TFor2(NodeTransformer):
+    def __init__(self):
+        self.rule = ForRuleMaker.for_to_list_comp()
+        self.node = None
         self.changed = False
-    
-    # Transform the AST
+        self.results : list[ReduceFor] = []
+
+
     def transform_ast(self, node: AST):
+        self.node = node
         self.changed = False
-        self.visit(node)
+        self.__get_results()
+        self.__set_results()
     
-    # Visitor for if nodes
-    def visit_If(self, node: AST):
-        log_node(node)
-        
-        if result := self.rule.change(node):
-            self.changed = True
-            return result.r_node
-        # leave unchanged        
+    # Get the results by calling visitor
+    def __get_results(self) -> None:
+        if self.node:
+            self.results.clear()
+            # NOTE: first visit to gather results
+            self.visit(self.node)
+    
+    # Set the results
+    def __set_results(self) -> None:
+        if self.results:
+            for res in self.results:
+                res.target.value = res.changed
+                self.changed = True
+                #logging.info(f"applied: {res}")
+            # NOTE: second visit to remove for nodes
+            self.visit(self.node)
+
+
+    def generic_visit(self, node: AST):
+        #log_node(node)
+        super().generic_visit(node)
+        if self.results and node in [res.remove for res in self.results]:
+            # remove the node
+            return None
+        if rs := self.rule.change(node): self.results.extend(rs)
         return node
 
 
-class TFunctionDef(NodeTransformer):
+class TSimple(NodeTransformer):
     
     def __init__(
-        self,rule: ExtractFunctionDefGuard
-        ):
+        self,
+        rule: InvertIf
+            | GuardDef
+            | DoubleNegation
+            | DeMorgan
+    ):
         self.rule = rule
         self.changed = False
-
+    
     def transform_ast(self, node: AST):
         self.changed = False
+        # start traversal
         self.visit(node)
         # NOTE: IT'S VERY IMPORTANT TO FIX LOCATIONS OF GENERATED NODES
-        # (ExtractFunctionDefGuard rule inserts an if statement into the generated function def)
+        # (GuardDef rule inserts an if statement into the generated function def)
         fix_missing_locations(node)
     
-    # visit function definition
-    def visit_FunctionDef(self, node: AST):
-        log_node(node)
-        
+    def generic_visit(self, node: AST):
+        #log_node(node)
+        super().generic_visit(node)
         if result := self.rule.change(node):
             self.changed = True
-            return result.r_node
-        # leave unchanged
-        return node
-
-
-class TLogic(NodeTransformer):
-    
-    def __init__(
-        self,rule: DoubleNegation | DeMorgan
-        ):
-        self.rule = rule
-        self.changed = False
-    
-    # Transform the AST
-    def transform_ast(self, node: AST):
-        self.changed = False
-        self.visit(node)
-    
-    # Visitor for unary operators
-    def visit_UnaryOp(self, node: AST):
-        log_node(node)
-        
-        if result := self.rule.change(node):
-            self.changed = True
-            return result.r_node
-        # leave unchanged
+            return result.changed
         return node
 
 
