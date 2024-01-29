@@ -1,33 +1,64 @@
-    # TODO use proper monostate pattern
-
 from pymongo.collection import Collection
 from pymongo import MongoClient
 
 
-class Client:
-    __client : MongoClient = None
-    # collection
-    equivalent : Collection = None
-    
-    @classmethod
-    def set_client(cls, client):
+def catch_all(func):
+    def wrapper(*args, **kwargs):
         try:
-            cls.__client   = client
-            cls.equivalent = client.refactoring.equivalent
-        except Exception as err:
-            print(err)
+            return func(*args, **kwargs)
+        except Exception as error:
+            print("catch all caught:", error)
+    return wrapper
+
+
+def parsed_data(doc, keys): return { key: doc[key] if key in doc else None for key in keys }
+
+
+class Client:
+    __shared = {}
+
+    def __init__(self):
+        self.__dict__ = self.__shared  # instance attributes set to shared state
+        self.__init_state()
+
+
+    def __init_state(self):
+        # NOTE: Beware of name mangling when using brog attributes like this (__ mangles the name)
+        if not hasattr(self, "client"    ): self.client     = None
+        if not hasattr(self, "equivalent"): self.equivalent = None
+
+    @catch_all
+    def set_client(self, client: MongoClient):
+        self.client     = client
+        self.equivalent = client.refactoring.equivalent
+
+    @catch_all
+    def get_client_info(self) -> str | None:
+        if self.client is None: return
+        return f"{self.client.HOST}:{self.client.PORT}"
     
-    @classmethod
-    def get_client(cls): return cls.__client
+    @catch_all
+    def get_document_count(self) -> int | None:
+        if self.client is None: return
+        return self.equivalent.count_documents({})
     
-    @classmethod
-    def get_client_info(cls):
-        return f"{cls.__client.HOST}:{cls.__client.PORT}" if cls.__client else ""
+    @catch_all    
+    def find_all(self, skip: int, limit: int):
+        if self.client is None: return
+        return self.equivalent.find({}).skip(skip).limit(limit)
     
-    @classmethod
-    def count_documents(cls):
-        if     cls.equivalent is None: return
-        return cls.equivalent.count_documents({})
+    @catch_all
+    def parsed_data(self, skip = 0, limit = 30):
+        if self.client is None: return
+        
+        docs = list(self.find_all(skip, limit))
+        
+        key_set = set()
+        for keys in [doc.keys() for doc in docs]: key_set.update(keys)
+        keys = list(key_set)
+        keys.sort()
+        
+        return keys, [ parsed_data(doc, keys) for doc in docs ]
 
 
 class RefactoringStore:
