@@ -26,12 +26,13 @@ class MonoState:
 class Observable(Protocol):
     def attach(observer):
         ...
-    def notify():
+    
+    def notify(self, event_type: str):
         ...
 
 
 class Observer(Protocol):
-    def on_update(self):
+    def on_update(self, event_type: str):
         ...
 
 
@@ -41,32 +42,38 @@ class AppState(MonoState, Observable):
         super().__init__()
         # initialize the state of each attribute if not present
         self.__init_state()
-    
-    
+   
+
     def __init_state(self):
         if not hasattr(self, "visitors"): self.visitors : list[api.NodeVisitor] = []
         if not hasattr(self, "ast_source"): self.ast_source : api.AST = None
         if not hasattr(self, "ast_result"): self.ast_result : api.AST = None
+        if not hasattr(self, "str_result"): self.str_result : str = ""
         if not hasattr(self, "observers"): self.observers : list[Observer] = []
 
 
+    def attach(self, observer):
+        self.observers.append(observer)
+
+
+    def notify(self, event_type: str):
+        for observer in self.observers:
+            observer.on_update(event_type)
+
+
     @logger
-    def ast_parse(self, source: str, target: str) -> api.AST:
-        if target not in {'source', 'result'}: return
-        
+    def ast_parse(self, source: str) -> api.AST:
         try: parsed = api.parse(source)
         except Exception as exception:
             print('Error while parsing:')
             print(exception)
             raise exception
-        
-        if target=='source': self.ast_source = parsed
-        if target=='result': self.ast_result = parsed
-            
-        return parsed
-    
+        self.ast_source = parsed
+        self.notify("ast_parse")
+        return self.ast_source  # return for logging
 
-    def ast_transform(self) -> str:
+
+    def ast_transform(self):
         if visitors:= self.visitors:
             self.ast_result = api.CopyTransformer(self.ast_source)\
                 .apply_visitors(visitors)\
@@ -75,39 +82,35 @@ class AppState(MonoState, Observable):
             self.ast_result = api.CopyTransformer(self.ast_source)\
                 .apply_all()\
                 .ast
-        # NOTE: maybe put this in a try block
-        return api.unparse(self.ast_result)
+        try:
+            self.str_result = api.unparse(self.ast_result)
+            self.notify("ast_transform")
+        except Exception as exception:
+            print('Error while unparsing:')
+            print(exception)
+            raise exception
 
 
-    def attach(self, observer):
-        self.observers.append(observer)
-
-
-    def notify(self):
-        for observer in self.observers:
-            observer.on_update()
-    
-    
     def add_visitor(self, name: str) -> None:
         visitor = api.create_visitor(name)
         # TODO: error handling
         self.visitors.append(visitor)
-        self.notify()
-    
+        self.notify("settings_change")
+
 
     def pop_visitor(self) -> object:
         # TODO
         pass
-    
-    
+
+
     def clear_visitors(self):
         self.visitors.clear()
-        self.notify()
+        self.notify("settings_change")
 
 
     def settings_info(self) -> str:
-        return "custom" if len(self.visitors) else "default (all)"
-    
+        return "custom" if self.visitors else "default (all)"
+
 
     def treeview_data(self, target: str) -> list:
         data = []
