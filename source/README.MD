@@ -1,13 +1,21 @@
 # Usage
 
-## Initialize
+## App Usage
 
-- **crawler.py** - **copy** all **.py** scripts from `data/repos` to `data/repos/__scripts__`.
+1) Make sure that all requirements in `requirements.txt` have been installed.
+2) [Optional] Connect to a `mongodb` server with refactorings.
+3) Launch the app by running the `main.py` script.
 
-## Refactor
+Use the app to try refactorings and browse the database.
 
-- Select refactorings to run.
+## Script Usage
 
-## Persistance
+Refactorings can be added inside the  `persistor_run.py` script using `store`.
 
-- **persistor.py** - **save** all **.py** scripts to mongodb database.
+### Initialize
+
+- `persistor_init.py` - **copy** all **.py** scripts from `data/repos` to `data/scripts`.
+
+### Persistance
+
+- `persistor_run.py` - **save** all **.py** scripts to mongodb database.

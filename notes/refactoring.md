@@ -1,6 +1,6 @@
 # Refactoring ideas
 
-## 'Advanced' refactorings to implement
+## "Advanced" refactorings to implement
 
 - extract variable (extract a complex expression into a variable)
 - extract methods/functions (extracting a block of code into a new funtion)
@@ -9,7 +9,7 @@
 - extracting superclass/interface from existing classes
 - swapping lines if it produces equivalent code
 
-## Refactoring tools to try
+## Tools to try
 
 - IDE's built in tools
 - `Bowler`
@@ -17,10 +17,6 @@
 - Python fixers like `modernize`
 - `PyUpgrade`
 - formatters like `autopep8` or `black`
-
-## Storing data
-
-- `MongodDb` for storing different refactorings to a given source file and converting to `.csv` files
 
 ## Inequivalent code
 

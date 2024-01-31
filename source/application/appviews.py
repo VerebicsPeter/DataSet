@@ -27,6 +27,90 @@ class View(ttk.Frame):
         self.controller = controller
 
 
+class CustomText(ttk.Frame):
+    def __init__(self, parent, has_scrollbar = True):
+        super().__init__(parent)
+        # textbox
+        self.textbox = ttk.Text(self, height=self.winfo_height(), width=self.winfo_width(), font=('FreeMono',12))
+        SyntaxHighlighter.set_colors(self.textbox)
+        # config
+        if has_scrollbar:
+            self.scrollbar = ttk.Scrollbar(self)
+            self.scrollbar.config(command=self.textbox.yview)
+            self.textbox['yscrollcommand'] = self.scrollbar.set
+
+    def set_text(self, text: str):
+        self.textbox['state'] = 'normal'
+        self.textbox.delete(1.0, END )
+        self.textbox.insert(END, text)
+        self.textbox['state'] = 'disabled'
+
+    def on_update(self):
+        SyntaxHighlighter.highlight(self.textbox)
+
+
+class SourceText(CustomText):
+    def __init__(self, parent, has_scrollbar = True):
+        super().__init__(parent, has_scrollbar)
+        # key bindings
+        self.textbox.bind("<KeyRelease>", self.on_update)
+        # pack
+        if has_scrollbar: self.scrollbar.pack(side="right", fill="y")
+        self.textbox.pack(fill="both", expand=True)
+    
+    def on_update(self, event):
+        if event.keycode in NAVIGATION_KEYCODES: return
+        super().on_update()  # highlights syntax
+
+
+class ResultText(CustomText):
+    def __init__(self, parent, has_scrollbar = True):
+        super().__init__(parent, has_scrollbar)
+        self.textbox.config(state="disabled")
+        # pack
+        if has_scrollbar: self.scrollbar.pack(side="right", fill="y")
+        self.textbox.pack(fill="both", expand=True)
+    
+    def on_update(self):
+        super().set_text(AppState().str_result)
+        super().on_update()  # highlights syntax
+
+
+class DiffView(ttk.Frame):
+    def __init__(self, parent):
+        super().__init__(parent)
+
+        self.text_original = ResultText(self, has_scrollbar=False)
+        self.text_modified = ResultText(self, has_scrollbar=False)
+        self.scrollbar = ttk.Scrollbar(self)
+        self.scrollbar.config(command=self.scroll_command)
+        self.text_original.textbox['yscrollcommand'] = self.scrollbar.set
+        self.text_modified.textbox['yscrollcommand'] = self.scrollbar.set
+        self.text_original.pack(fill="both", side="left", expand=True)
+        self.text_modified.pack(fill="both", side="left", expand=True)
+        self.scrollbar.pack(fill="y", side="right")
+        
+    def scroll_command(self, *args):
+        self.text_original.textbox.yview(*args)
+        self.text_modified.textbox.yview(*args)
+
+    def set_diff(self, diff: list):
+        original, modified = "", ""
+        for line in diff:
+            if line[0] == "-":
+                modified += f"\n"
+                original += f"{line}\n"
+                continue
+            if line[0] == "+":
+                modified += f"{line}\n"
+                original += f"\n"
+                continue
+            original += f"{line}\n"
+            modified += f"{line}\n"
+        self.text_original.set_text(original)
+        self.text_modified.set_text(modified)
+
+
 class ASTView(ttk.Frame):
     def __init__(self, parent, target: str = None):
         super().__init__(parent)
@@ -63,54 +147,6 @@ class ASTView(ttk.Frame):
         self.treeview.delete(*self.treeview.get_children())
         
         self._generate_treeview(AppState().treeview_data(self.target))
-
-
-class CustomText(ttk.Frame):
-    def __init__(self, parent):
-        super().__init__(parent)
-        # textbox
-        self.textbox = ttk.Text(self, height=self.winfo_height(), font=('FreeMono', 12))
-        SyntaxHighlighter.set_colors(self.textbox)
-        # config
-        self.scrollbar = ttk.Scrollbar(self)
-        self.scrollbar.config(command=self.textbox.yview)
-        self.textbox['yscrollcommand'] = self.scrollbar.set
-
-    def set_text(self, text: str):
-        self.textbox['state'] = 'normal'
-        self.textbox.delete(1.0, END )
-        self.textbox.insert(END, text)
-        self.textbox['state'] = 'disabled'
-
-    def on_update(self):
-        SyntaxHighlighter.highlight(self.textbox)
-
-
-class SourceText(CustomText):
-    def __init__(self, parent):
-        super().__init__(parent)
-        # key bindings
-        self.textbox.bind("<KeyRelease>", self.on_update)
-        # pack
-        self.scrollbar.pack(side="right", fill="y")
-        self.textbox.pack(fill="both", expand=True)
-    
-    def on_update(self, event):
-        if event.keycode in NAVIGATION_KEYCODES: return
-        super().on_update()  # highlights syntax
-
-
-class ResultText(CustomText):
-    def __init__(self, parent):
-        super().__init__(parent)
-        self.textbox.config(state="disabled")
-        # pack
-        self.scrollbar.pack(side="right", fill="y")
-        self.textbox.pack(fill="both", expand=True)
-    
-    def on_update(self):
-        super().set_text(AppState().str_result)
-        super().on_update()  # highlights syntax
 
 
 class Menu(View):
@@ -236,11 +272,22 @@ class DatabaseTab(View):
         # display
         self.tree.pack(fill="both", expand=True)
         
-        # text box for diff
-        self.diff_text = ttk.Text(self)
-        self.diff_text.config(state="disabled")
-        self.diff_text.pack(fill="both", expand=False)
-    # TODO make a separate form to print the diffs
+        # text boxes for diff
+        self.diff_view = DiffView(self)
+        self.diff_view.pack(fill="both", expand=True)
+        
+        self.diff_form = ttk.Frame(self)
+        self.diff_form.pack(fill="x")
+        
+        self.combo_select = ttk.Combobox(self.diff_form, values=cols[2:], width=25)
+        self.combo_select.grid(row=0, column=0, pady=10, padx=10)
+        self.combo_select["state"] = "readonly"
+        self.combo_select.set(self.combo_select["values"][0])
+        
+        self.button_show = ttk.Button(self.diff_form, text="Show Diff",
+                                        command=self.on_item_select)
+        self.button_show.grid(row=0, column=1, pady=10)
+        
 
     def fetch(self):
         keys, data = Client().parsed_data(skip = self.page_size * self.page, limit = self.page_size)
@@ -274,6 +321,7 @@ class DatabaseTab(View):
     def on_page_change(self, inc: int):
         self.paginate(inc)
         cols, rows = self.fetch()
+        
         self.tree.destroy()
         self.tree = ttk.Treeview(self.db_frame, columns=cols, show='headings', bootstyle='primary')
         self.tree.bind("<<TreeviewSelect>>", self.on_item_select)
@@ -283,35 +331,38 @@ class DatabaseTab(View):
         for row in rows: self.tree.insert('', tk.END, values=row)
         # display
         self.tree.pack(fill="both", expand=True)
+        
+        self.combo_select["values"] = cols[2:]
+        self.combo_select.set(self.combo_select["values"][0])
         self.update_label_text()
 
 
-    def on_item_select(self, event):
-        for selected in self.tree.selection():
-            record = self.tree.item(selected)["values"]
-            # show a message
-            id = record[0]
-            if refactoring := Client().equivalent.find_one({"_id": id}):
-                self.update_diff_text(refactoring, "autopep+for_to_comp")
+    def on_item_select(self, event = None):
+        selected = self.tree.selection()
+        
+        row = self.tree.item(selected)["values"]
+        if not row: return
+
+        id = row[0]
+        if record := Client().equivalent.find_one({"_id": id}):
+            self.update_diff_view(record, self.combo_select.get())
 
 
-    def update_diff_text(self, record, key: str):
-        if "_source" not in record or key not in record: return
-        source_content : str = record["_source"]
-        result_content : str = record[key]
-        # split the strings into lines
-        source_lines = source_content.splitlines()
-        result_lines = result_content.splitlines()
+    def update_diff_view(self, record : dict, key: str):
+        if ("_source" not in record or 
+                  key not in record or
+                  key in {"_id", "_source"}):
+            return
+        source : str = record["_source"]
+        result : str = record[key]
         # use difflib to get the differences
-        differ = difflib.Differ()
-        diff = list(differ.compare(source_lines, result_lines))
-        # update the diff text widget
-        self.diff_text['state'] = 'normal'
-        self.diff_text.delete(1.0,tk.END)
-        # print the differences
-        for line in diff:
-            self.diff_text.insert(tk.END, line+"\n")
-        self.diff_text['state'] = 'disabled'
+        diff = difflib.Differ().compare(s:= source.splitlines(), r:= result.splitlines())
+        
+        self.diff_view.set_diff(list(diff))
+        
+        diff_html = difflib.HtmlDiff().make_file(s, r)
+        with open('diff.html', 'w') as f:
+            f.write(diff_html)
 
 
     def update_label_text(self) -> str:

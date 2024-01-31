@@ -34,4 +34,4 @@
 ## Implementation
 
 - Create smaller 'sub-patterns' for more complex transformations (i.e.: for transformations)
-- Make rules bidirectional
+- Make rules "bidirectional"

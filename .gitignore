@@ -44,9 +44,10 @@ coverage.xml
 # Rope
 .ropeproject
 
-# Generated image and file
+# Generated images and files
 ast_graph.png
 ast_graph
+diff.html
 
 # vscode workspaces
 *.code-workspace
