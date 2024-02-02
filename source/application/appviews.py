@@ -1,6 +1,5 @@
 #----------------
 from math import ceil
-import difflib
 import logging
 #----------------
 import tkinter as tk
@@ -10,20 +9,17 @@ from ttkbootstrap.tableview import Tableview
     # TODO turn treeview into table view into
 #----------------
 from .appstate import AppState
+from .client import Client
+from .controllers import MenuController, RefactorController, DatabaseController, SettingsController
 from .helpers  import SyntaxHighlighter, NAVIGATION_KEYCODES
-#----------------
-from persistance.refactoring import Client
 #----------------
 from transformations import transformation_api as api
 #----------------
 
 
 class View(ttk.Frame):
-    def __init__(self, parent):
+    def __init__(self, parent, controller = None):
         super().__init__(parent)
-        self.controller = None
-    
-    def set_controller(self, controller):
         self.controller = controller
 
 
@@ -98,15 +94,12 @@ class DiffView(ttk.Frame):
         original, modified = "", ""
         for line in diff:
             if line[0] == "-":
-                modified += f"\n"
-                original += f"{line}\n"
+                original += f"{line}\n"; modified += f"\n"; 
                 continue
             if line[0] == "+":
-                modified += f"{line}\n"
-                original += f"\n"
+                modified += f"{line}\n"; original += f"\n"
                 continue
-            original += f"{line}\n"
-            modified += f"{line}\n"
+            original += f"{line}\n"; modified += f"{line}\n"
         self.text_original.set_text(original)
         self.text_modified.set_text(modified)
 
@@ -150,26 +143,39 @@ class ASTView(ttk.Frame):
 
 
 class Menu(View):
-    def __init__(self, parent: ttk.Window):
-        super().__init__(parent)
+    controller: MenuController
+    
+    def __init__(self, parent: ttk.Window, controller: MenuController):
+        super().__init__(parent, controller)
         
         self._menubar = ttk.Menu(parent)
         # submenus
         self.filemenu = ttk.Menu(self._menubar, tearoff=0, font=('lucida', 10))
         self.filemenu.add_command(label="Close",
-                command=lambda:self.controller.on_close(self))
+                command=self.on_close)
         self.aboutmenu = ttk.Menu(self._menubar, tearoff=0, font=('lucida', 10))
         self.aboutmenu.add_command(label="Usage",
-                command=lambda:self.controller.on_usage())
+                command=self.on_usage)
         # add cascade
         self._menubar.add_cascade(label="File",  menu=self.filemenu )
         self._menubar.add_cascade(label="About", menu=self.aboutmenu)
         self.parent = parent
+    
+    
+    def on_close(self):
+        self.controller.close()
+        self.parent.destroy()
+
+    
+    def on_usage(self):
+        logging.info('"on_usage" not implemented')
 
 
 class RefactorTab(View):
-    def __init__(self, parent):
-        super().__init__(parent)
+    controller: RefactorController
+    
+    def __init__(self, parent, controller: RefactorController):
+        super().__init__(parent, controller)
         # rows
         self.rowconfigure(0, weight=5)
         self.rowconfigure(1, weight=3)
@@ -206,21 +212,26 @@ class RefactorTab(View):
         ttk.Button(self, text="Show Result AST", width=20,
             command=lambda:self.controller.ast_show_result()
         ).grid(row=2, column=3, pady=10)
-        # observers
+        # add to observers
         AppState().attach(self)
 
+    
     def get_source_text(self):
         return self.source_text.textbox.get('1.0', END)
+    
     
     def set_source_text(self, text: str):
         self.source_text.set_text(text)
         
+    
     def get_result_text(self):
         return self.result_text.textbox.get('1.0', END)
+    
     
     def set_result_text(self, text: str):
         self.result_text.set_text(text)
         
+    
     def on_update(self, event_type: str):
         if event_type == "ast_parse":
             self.source_tree.on_update()
@@ -230,24 +241,23 @@ class RefactorTab(View):
 
 
 class DatabaseTab(View):
-    def __init__(self, parent):
-        super().__init__(parent)
+    controller: DatabaseController
     
-        self.label = ttk.Label(self, text='Documents: None')
+    def __init__(self, parent, controller: DatabaseController):
+        super().__init__(parent, controller)
+
+        self.label = ttk.Label(self, text='Documents: None, Page: None')
         self.label.pack(side="top", fill="y", expand=False, padx=5, pady=5)
         
-        if Client().client is None: return
+        if not (count := self.controller.document_count()): return
         
-        self.page = 0
-        self.page_size = 20
-        self.count = Client().get_document_count() 
-        self.update_label_text()
-        
+        self.page, self.page_size = 0, 25
+        self.count = count
+        self.update_label()
         # frame for db browser
         self.db_frame = ttk.Frame(self)
         self.db_frame.pack(fill="both", expand=True)
-        
-        # frame for db browser navigation buttons
+        # frame for db browser's navigation buttons
         self.button_frame = ttk.Frame(self.db_frame)
         self.button_frame.pack(pady=5)
         
@@ -260,92 +270,71 @@ class DatabaseTab(View):
         self.prev_button.grid(row=0, column=0, padx=5, pady=5)
         self.next_button.grid(row=0, column=1, padx=5, pady=5)
         
-        # fetch the first page
-        cols, rows = self.fetch()
-        
-        self.tree = ttk.Treeview(self.db_frame, columns=cols, show='headings', bootstyle='primary')
-        self.tree.bind("<<TreeviewSelect>>", self.on_item_select)
-        # define headings
-        for col in cols: self.tree.heading(col, text=col)
-        # add data to the treeview
-        for row in rows: self.tree.insert('', tk.END, values=row)
-        # display
-        self.tree.pack(fill="both", expand=True)
-        
-        # text boxes for diff
         self.diff_view = DiffView(self)
         self.diff_view.pack(fill="both", expand=True)
-        
+        # diff form widgets
         self.diff_form = ttk.Frame(self)
         self.diff_form.pack(fill="x")
-        
-        self.combo_select = ttk.Combobox(self.diff_form, values=cols[2:], width=25)
-        self.combo_select.grid(row=0, column=0, pady=10, padx=10)
+        self.combo_select = ttk.Combobox(self.diff_form, width=25,)
         self.combo_select["state"] = "readonly"
-        self.combo_select.set(self.combo_select["values"][0])
-        
-        self.button_show = ttk.Button(self.diff_form, text="Show Diff",
-                                        command=self.on_item_select)
+        self.combo_select.grid(row=0, column=0, pady=10, padx=10)
+        self.button_show = ttk.Button(self.diff_form, text="Show Diff", command=self.on_item_select)
         self.button_show.grid(row=0, column=1, pady=10)
-        
+        self.on_page_change(0)  # used to init self.treeview
 
-    def fetch(self):
-        keys, data = Client().parsed_data(skip = self.page_size * self.page, limit = self.page_size)
 
-        cols = tuple(keys)
-        # get data row by row
-        rows = []
-        while data and(row := data.pop()):
-            values = [ row[key] if key == "_id" else
-                       row[key] if not row[key] else len(row[key]) for key in keys ]
-            rows.append(tuple(values))
-        
-        return cols, rows
+    def _generate_treeview(self, data: tuple[tuple, list[tuple]]):
+        cols, rows = data
+        self.treeview = ttk.Treeview(self.db_frame, columns=cols, show='headings', bootstyle='primary')
+        self.treeview.bind("<<TreeviewSelect>>", self.on_item_select)
+        # define headings
+        for col in cols: self.treeview.heading(col, text=col)
+        # add data to the treeview
+        for row in rows: self.treeview.insert('', tk.END, values=row)
+        # display
+        self.treeview.pack(fill="both", expand=True)
 
 
     def paginate(self, inc: int):
         self.page += inc
         p_min, p_max = 0, ceil(self.count / self.page_size)
         if self.page <= p_min:
-            self.page = p_min
-            self.prev_button["state"] = "disabled"
+            self.page = p_min; self.prev_button["state"] = "disabled"
         else:
             self.prev_button["state"] = "normal"
         if self.page >= p_max:
-            self.page = p_max
-            self.next_button["state"] = "disabled"
+            self.page = p_max; self.next_button["state"] = "disabled"
         else:
             self.next_button["state"] = "normal"
 
 
     def on_page_change(self, inc: int):
         self.paginate(inc)
-        cols, rows = self.fetch()
         
-        self.tree.destroy()
-        self.tree = ttk.Treeview(self.db_frame, columns=cols, show='headings', bootstyle='primary')
-        self.tree.bind("<<TreeviewSelect>>", self.on_item_select)
-        # define headings
-        for col in cols: self.tree.heading(col, text=col)
-        # add data to the treeview
-        for row in rows: self.tree.insert('', tk.END, values=row)
-        # display
-        self.tree.pack(fill="both", expand=True)
+        cols, rows = self.controller.find_all(skip = self.page_size * self.page, limit = self.page_size)
+        
+        if hasattr(self, "treeview"): self.treeview.destroy()
+        self._generate_treeview(data=(cols, rows))
         
         self.combo_select["values"] = cols[2:]
         self.combo_select.set(self.combo_select["values"][0])
-        self.update_label_text()
+        self.update_label()
 
 
     def on_item_select(self, event = None):
-        selected = self.tree.selection()
+        selected = self.treeview.selection()
         
-        row = self.tree.item(selected)["values"]
+        row = self.treeview.item(selected)["values"]
         if not row: return
 
         id = row[0]
-        if record := Client().equivalent.find_one({"_id": id}):
+        if record := self.controller.find_one(id):
             self.update_diff_view(record, self.combo_select.get())
+
+
+    def update_label(self) -> str:
+        self.label["text"] = ', '.join([
+            f'Documents: {self.count}', f'Page: {self.page + 1} of {ceil(self.count / self.page_size) + 1}'])
 
 
     def update_diff_view(self, record : dict, key: str):
@@ -355,35 +344,24 @@ class DatabaseTab(View):
             return
         source : str = record["_source"]
         result : str = record[key]
-        # use difflib to get the differences
-        diff = difflib.Differ().compare(s:= source.splitlines(), r:= result.splitlines())
+
+        diff = self.controller.get_diff(s := source.splitlines(), r := result.splitlines())
         
-        self.diff_view.set_diff(list(diff))
-        
-        diff_html = difflib.HtmlDiff().make_file(s, r)
-        with open('diff.html', 'w') as f:
-            f.write(diff_html)
+        self.diff_view.set_diff(diff)
+        # maybe do this with a separate button
+        self.controller.create_diff_html(s, r)
 
 
-    def update_label_text(self) -> str:
-        self.label["text"] = ', '.join([
-            self.get_docs_info(),
-            self.get_page_info()])
-
-
-    def get_docs_info(self) -> str:
-        return f'Documents: {self.count}'
-
-
-    def get_page_info(self) -> str:
-        page_index = self.page + 1
-        page_count = ceil(self.count / self.page_size) + 1
-        return f'Page: {page_index} of {page_count}'
+    def update_diff_form(self, keys: list[str]):
+        self.combo_select["values"] = keys
+        self.combo_select.set(self.combo_select["values"][0])
 
 
 class SettingsTab(View):
-    def __init__(self, parent, rules: list[str] = None):
-        super().__init__(parent)
+    controller: SettingsController
+    
+    def __init__(self, parent, controller: SettingsController, rules: list[str] = None):
+        super().__init__(parent, controller)
         
         self.rules = ttk.Labelframe(self, text="Rules")
         self.rules.pack(pady=10)
@@ -406,25 +384,26 @@ class SettingsTab(View):
         self.list_rules = tk.Listbox(self.rules_custom, width=30)
         self.list_rules.grid(row=0, column=0, padx=10, pady=10, columnspan=2)
         
-        self.button_clear = ttk.Button(self.rules_custom, text="Clear rules",
+        self.button_clear = ttk.Button(self.rules_custom, text="Clear Rules",
                                                 command=self.clear_rules)
         self.button_clear.grid(row=1, column=0, padx=10, pady=10)
         self.button_clear["state"] = "disabled"
         
-        self.button_delete = ttk.Button(self.rules_custom, text="Delete rule",
+        self.button_delete = ttk.Button(self.rules_custom, text="Delete Rule",
                                                 command=self.clear_rules)  # TODO
         self.button_delete.grid(row=1, column=1, padx=10, pady=10)
         self.button_delete["state"] = "disabled"
     
+    
     def add_rule(self):
         self.list_rules.insert(tk.END, name := self.combo_rules.get())
-        AppState().add_visitor(name)
+        self.controller.add_rule(name)
         self.button_clear["state"] = "normal"
     
+    
     def clear_rules(self):
-        if not AppState().visitors: return
         self.list_rules.delete(0, tk.END)
-        AppState().clear_visitors()
+        self.controller.clear_rules()
         self.button_clear["state"] = "disabled"
 
 
@@ -441,8 +420,9 @@ class StatusBar(ttk.Frame):
         self.label_settings = ttk.Label(self, text=f"Settings: {AppState().settings_info()}")
         self.label_settings.pack(side="left", padx=0, pady=3)
         ttk.Separator(self, orient='vertical').pack(side="left", padx=10)
-        # add observable
+        # add to observers
         AppState().attach(self)
+    
     
     def on_update(self, event_type: str):
         if event_type == "client_change":
@@ -453,10 +433,10 @@ class StatusBar(ttk.Frame):
 
 class AppGUI(ttk.Window):
     def __init__(self,
-                 menu_ctl,
-                 refactor_ctl,
-                 database_ctl,
-                 settings_ctl,
+                 menu_ctl: MenuController,
+                 refactor_ctl: RefactorController,
+                 database_ctl: DatabaseController,
+                 settings_ctl: SettingsController,
                 ) -> None:
         # setup
         super().__init__(themename="darkly")
@@ -469,11 +449,10 @@ class AppGUI(ttk.Window):
         self.tabs = ttk.Notebook(self)
         self.tabs.pack(side="top", fill="both", expand=True)
         
-        self.tab_refactor = RefactorTab(self.tabs)
-        self.tab_refactor.set_controller(refactor_ctl)
-        # TODO controller for these
-        self.tab_database = DatabaseTab(self.tabs)
-        self.tab_settings = SettingsTab(self.tabs, rules=api.all_visitor_names())
+        self.tab_refactor = RefactorTab(self.tabs, controller=refactor_ctl)
+        self.tab_database = DatabaseTab(self.tabs, controller=database_ctl)
+        self.tab_settings = SettingsTab(self.tabs, controller=settings_ctl,
+                                        rules=api.all_visitor_names())
         
         self.tabs.add(self.tab_refactor, text="Refactor")
         self.tabs.add(self.tab_database, text="Database")
@@ -481,17 +460,12 @@ class AppGUI(ttk.Window):
         # status bar
         self.statusbar = StatusBar(self)
         self.statusbar.pack(side="bottom", fill="x")
-        
+    
+    
     def _create_menu_view(self, menu_ctl):
-        self.menu = Menu(self)
-        # add controller
-        self.menu.set_controller(menu_ctl)
-        # add to view
+        self.menu = Menu(self, menu_ctl)
         self.config(menu=self.menu._menubar)
-        
-    def _create_tab_views(self, model):
-        # TODO controller for tabs
-        pass
-
+    
+    
     def run(self):
         self.mainloop()

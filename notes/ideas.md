@@ -30,8 +30,17 @@
 ### Other
 
 - [ ] `try: open(...) excep: ...` to `with open(...)`
+- [ ] code obfuscation
 
 ## Implementation
 
 - Create smaller 'sub-patterns' for more complex transformations (i.e.: for transformations)
 - Make rules "bidirectional"
+- CFGs
+- Rules may be easier to implement like this:
+  - matcher:
+    - function that matches and *deconstructs* a node
+    - returns the nodes components or `None` if it isn't a match
+  - changer:
+    - function that creates the change based on a matched node
+    - returns a change object or `None` if no changes are possible

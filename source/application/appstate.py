@@ -1,8 +1,9 @@
-#---------------
+#----------------
 import logging
 import uuid  # for generating generating treeview ids
-from typing import Protocol
-#---------------
+#----------------
+from .bases import *
+#----------------
 from transformations import transformation_api as api
 #----------------
 
@@ -13,27 +14,6 @@ def logger(func):
         if log := func(*args, **kwargs): logging.debug(log)
         logging.debug('-'*100)
     return wrapper
-
-
-class MonoState:
-    # shared state of all objects
-    __shared = {}
-    
-    def __init__(self) -> None:
-        self.__dict__ = self.__shared
-
-
-class Observable(Protocol):
-    def attach(observer):
-        ...
-    
-    def notify(self, event_type: str):
-        ...
-
-
-class Observer(Protocol):
-    def on_update(self, event_type: str):
-        ...
 
 
 class AppState(MonoState, Observable):

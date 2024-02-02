@@ -5,7 +5,7 @@ import threading
 import itertools
 #----------------
 import db
-from persistance.refactoring import Client
+from application.client import Client
 #----------------
 from application.app import App
 #----------------
