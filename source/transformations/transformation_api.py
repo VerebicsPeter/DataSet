@@ -148,7 +148,7 @@ def logic_rules(node: AST) -> bool:
 # Helpers
 
 all_visitors = {
-    "For to list comprehension": lambda: TFor2(),
+    "For to list comprehension": lambda: TFor(ForToListComprehension()), #TFor2(),
     "For to dict comprehension": lambda: TFor(ForToDictComprehension()),
     "For to set comprehension":  lambda: TFor(ForToSetComprehension()),
     "For to sum":                lambda: TFor(ForToSum()),

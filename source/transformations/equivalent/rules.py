@@ -75,7 +75,7 @@ class ForRuleMaker:
         return ForRule2\
         (
             Patterns.assign_empty_list,
-            Patterns.for_to_list_comp,
+            Patterns.appends_to_list,
             Changers.for_to_list_comp
         )
 
@@ -166,55 +166,16 @@ class ForToListComprehension(ForRule):
             elt=args[0],  # this is correct because append only takes one argument
             generators=[ast.comprehension(target=target,iter=iter,ifs=ifs,is_async=0)]
         )
-        return ReduceFor(self._Assign, self._For, result)
+        return ReduceFor(result, self._Assign, self._For)
 
 
 class ForToDictComprehension(ForRule):
     
     def _match_Assign(self, node: AST) -> AST | None:
-        match node:
-            case( 
-                ast.Assign(
-                    targets=[ast.Name(ctx=ast.Store())],
-                    value=ast.Dict(keys=[], values=[]))
-                ):
-                return node
-        return None
+        return Patterns.assign_empty_dict(node)
     
     def _match_For(self, node: AST, sum_name: str) -> AST | None:
-        match node:
-            case(
-                ast.For(
-                target=ast.Name(ctx=ast.Store()),
-                body=[
-                    ast.Assign(
-                    targets=[
-                        ast.Subscript(
-                            value=ast.Name(id=_ as _sum_name),
-                            slice=_,
-                            ctx=ast.Store())
-                    ],
-                    value=_)
-                    |
-                    ast.If(
-                    test=_,
-                    body=[
-                        ast.Assign(
-                        targets=[
-                            ast.Subscript(
-                                value=ast.Name(id=_ as _sum_name),
-                                slice=_,
-                                ctx=ast.Store())
-                        ],
-                        value=_)
-                    ],
-                    orelse=[]) as _body
-                ],
-                orelse=[])
-                ):
-                if len(Node.all_names(_body, sum_name)) - 1: return None
-                return node if sum_name == _sum_name else None
-        return None
+        return Patterns.for_to_dict_comp(node, sum_name)
     
     def _get_change(self, target: expr, iter: expr, ifs: list[expr], statement: stmt) -> ReduceFor | None:
         if not self._Assign or not self._For: return None
@@ -226,54 +187,16 @@ class ForToDictComprehension(ForRule):
             key=slice, value=value,
             generators=[ast.comprehension(target=target,iter=iter,ifs=ifs,is_async=0)]
         )
-        return ReduceFor(self._Assign, self._For, result)
+        return ReduceFor(result, self._Assign, self._For)
 
 
 class ForToSetComprehension(ForRule):
 
     def _match_Assign(self, node: AST) -> AST | None:
-        """Returns whether `node` assigns an empty set"""
-        match node:
-            case( 
-                ast.Assign(
-                    targets=[ast.Name(ctx=ast.Store())],
-                    value=ast.Call(func=ast.Name('set', ctx=ast.Load()), args=[], keywords=[]))
-                ):
-                return node
-        return None
+        return Patterns.assign_empty_set(node)
 
     def _match_For(self, node: AST, sum_name: str) -> AST | None:
-        match node:
-            case(
-                ast.For(
-                target=ast.Name(),
-                body=[
-                    ast.Expr(
-                    value=ast.Call(
-                        func=ast.Attribute(
-                            value=ast.Name(id=_ as _sum_name),
-                            attr='add',
-                            ctx=ast.Load()),
-                        args=_))
-                    |
-                    ast.If(
-                    test=_,
-                    body=[
-                        ast.Expr(
-                        value=ast.Call(
-                            func=ast.Attribute(
-                                value=ast.Name(id=_ as _sum_name),
-                                attr='add',
-                                ctx=ast.Load()),
-                            args=_))
-                    ],
-                    orelse=[]) as _body
-                ],
-                orelse=[])
-                ):
-                if len(Node.all_names(_body, sum_name)) - 1: return None
-                return node if sum_name == _sum_name else None
-        return None
+        return Patterns.for_to_set_comp(node, sum_name)
     
     def _get_change(self, target: expr, iter: expr, ifs: list[expr], statement: stmt) -> dict | None:
         if not self._Assign or not self._For: return None
@@ -284,49 +207,16 @@ class ForToSetComprehension(ForRule):
             elt=args[0],  # this is correct because add only takes one argument
             generators=[ast.comprehension(target=target,iter=iter,ifs=ifs,is_async=0)]
         )
-        return ReduceFor(self._Assign, self._For, result)
+        return ReduceFor(result, self._Assign, self._For)
 
 
 class ForToSum(ForRule):
     
     def _match_Assign(self, node: AST) -> AST | None:
-        """Returns whether `node` assigns the literal 0 or 0.0"""
-        match node:
-            case(
-                ast.Assign(
-                    targets=[ast.Name(ctx=ast.Store())],
-                    value=(ast.Constant(0) | ast.Constant(0.0)))
-                ):
-                return node
-        return None
+        return Patterns.assign_zero_numeric(node)
     
     def _match_For(self, node: AST, sum_name: str) -> AST | None:
-        match node:
-            case(
-                ast.For(
-                target=_,
-                body=[
-                    ast.AugAssign(
-                        target=ast.Name(id=_ as _sum_name),
-                        op=ast.Add(),
-                        value=_)
-                    |
-                    ast.If(
-                    test=_,
-                    body=[
-                        ast.AugAssign(
-                            target=ast.Name(id=_ as _sum_name),
-                            op=ast.Add(),
-                            value=_)
-                    ],
-                    orelse=[]) as _body
-                ],
-                orelse=[])
-                ):
-                if len(Node.all_names(_body, sum_name)) - 1:
-                    return None
-                return node if sum_name == _sum_name else None
-        return None
+        return Patterns.for_to_sum(node, sum_name)
 
     def _get_change(self, target: expr, iter: expr, ifs: list[expr], statement: stmt) -> dict | None:
         if not self._Assign or not self._For: return None
@@ -342,7 +232,7 @@ class ForToSum(ForRule):
                 )],
             keywords=[]
         )
-        return ReduceFor(self._Assign, self._For, result)
+        return ReduceFor(result, self._Assign, self._For)
 
 
 # TODO: implement

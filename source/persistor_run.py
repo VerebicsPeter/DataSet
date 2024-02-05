@@ -5,7 +5,7 @@ import autopep8
 import utils
 #----------------
 import db
-from source.persistance.refactoring import RefactoringStore
+from persistance.refactoring import RefactoringStore
 #----------------
 from transformations import transformation_api as api
 #----------------

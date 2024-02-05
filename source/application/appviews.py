@@ -1,12 +1,10 @@
 #----------------
-from math import ceil
 import logging
 #----------------
 import tkinter as tk
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
 from ttkbootstrap.tableview import Tableview
-    # TODO turn treeview into table view into
 #----------------
 from .appstate import AppState
 from .client import Client
@@ -245,33 +243,22 @@ class DatabaseTab(View):
     
     def __init__(self, parent, controller: DatabaseController):
         super().__init__(parent, controller)
-
-        self.label = ttk.Label(self, text='Documents: None, Page: None')
+        # page size for pagination
+        self.page_size = 25
+        
+        self.label = ttk.Label(self, text='Documents: None')
         self.label.pack(side="top", fill="y", expand=False, padx=5, pady=5)
         
         if not (count := self.controller.document_count()): return
-        
-        self.page, self.page_size = 0, 25
         self.count = count
         self.update_label()
-        # frame for db browser
-        self.db_frame = ttk.Frame(self)
-        self.db_frame.pack(fill="both", expand=True)
-        # frame for db browser's navigation buttons
-        self.button_frame = ttk.Frame(self.db_frame)
-        self.button_frame.pack(pady=5)
         
-        self.prev_button = ttk.Button(self.button_frame, width=15, text="Previous Page",
-                command=lambda:self.on_page_change(-1))
-        self.next_button = ttk.Button(self.button_frame, width=15, text="Next Page",
-                command=lambda:self.on_page_change( 1))
-        
-        self.prev_button.config(state="disabled")
-        self.prev_button.grid(row=0, column=0, padx=5, pady=5)
-        self.next_button.grid(row=0, column=1, padx=5, pady=5)
-        
+        # fetch data
+        cols, rows = self.controller.find_all(skip=0, limit=0)
+        self._init_table(data=(cols,rows))
         self.diff_view = DiffView(self)
         self.diff_view.pack(fill="both", expand=True)
+        
         # diff form widgets
         self.diff_form = ttk.Frame(self)
         self.diff_form.pack(fill="x")
@@ -280,61 +267,44 @@ class DatabaseTab(View):
         self.combo_select.grid(row=0, column=0, pady=10, padx=10)
         self.button_show = ttk.Button(self.diff_form, text="Show Diff", command=self.on_item_select)
         self.button_show.grid(row=0, column=1, pady=10)
-        self.on_page_change(0)  # used to init self.treeview
+        self._init_combo(cols)  # used to init the combo select values 
 
 
-    def _generate_treeview(self, data: tuple[tuple, list[tuple]]):
+    def _init_table(self, data: tuple[list, list[tuple]]):
         cols, rows = data
-        self.treeview = ttk.Treeview(self.db_frame, columns=cols, show='headings', bootstyle='primary')
-        self.treeview.bind("<<TreeviewSelect>>", self.on_item_select)
-        # define headings
-        for col in cols: self.treeview.heading(col, text=col)
-        # add data to the treeview
-        for row in rows: self.treeview.insert('', tk.END, values=row)
-        # display
-        self.treeview.pack(fill="both", expand=True)
+        self.table = Tableview(
+            self,
+            coldata=cols,
+            rowdata=rows,
+            autofit=False,
+            bootstyle=PRIMARY,
+            paginated=True, pagesize=self.page_size
+        )
+        self.table.view.bind("<<TreeviewSelect>>", self.on_item_select)
+        self.table.pack(fill="both", expand=True)
 
 
-    def paginate(self, inc: int):
-        self.page += inc
-        p_min, p_max = 0, ceil(self.count / self.page_size)
-        if self.page <= p_min:
-            self.page = p_min; self.prev_button["state"] = "disabled"
-        else:
-            self.prev_button["state"] = "normal"
-        if self.page >= p_max:
-            self.page = p_max; self.next_button["state"] = "disabled"
-        else:
-            self.next_button["state"] = "normal"
-
-
-    def on_page_change(self, inc: int):
-        self.paginate(inc)
-        
-        cols, rows = self.controller.find_all(skip = self.page_size * self.page, limit = self.page_size)
-        
-        if hasattr(self, "treeview"): self.treeview.destroy()
-        self._generate_treeview(data=(cols, rows))
-        
-        self.combo_select["values"] = cols[2:]
+    def _init_combo(self, cols):
+        self.combo_select["values"] = [ col['text']
+                                    for col in cols
+                                    if  col['text'] not in {"_id", "_source"} ]
         self.combo_select.set(self.combo_select["values"][0])
-        self.update_label()
 
 
     def on_item_select(self, event = None):
-        selected = self.treeview.selection()
-        
-        row = self.treeview.item(selected)["values"]
+        selected = self.table.view.selection()
+        if len(selected) - 1:
+            print("Can't select more than one item.")
+            return
+        row = self.table.view.item(selected)["values"]
         if not row: return
-
         id = row[0]
         if record := self.controller.find_one(id):
             self.update_diff_view(record, self.combo_select.get())
 
 
     def update_label(self) -> str:
-        self.label["text"] = ', '.join([
-            f'Documents: {self.count}', f'Page: {self.page + 1} of {ceil(self.count / self.page_size) + 1}'])
+        self.label["text"] = f"Documents: {self.count}"
 
 
     def update_diff_view(self, record : dict, key: str):
@@ -345,16 +315,13 @@ class DatabaseTab(View):
         source : str = record["_source"]
         result : str = record[key]
 
-        diff = self.controller.get_diff(s := source.splitlines(), r := result.splitlines())
-        
+        diff = self.controller.get_diff(
+            s := source.splitlines(),
+            r := result.splitlines()
+        )
         self.diff_view.set_diff(diff)
         # maybe do this with a separate button
         self.controller.create_diff_html(s, r)
-
-
-    def update_diff_form(self, keys: list[str]):
-        self.combo_select["values"] = keys
-        self.combo_select.set(self.combo_select["values"][0])
 
 
 class SettingsTab(View):

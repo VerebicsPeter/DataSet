@@ -78,12 +78,15 @@ class DatabaseController:
     def find_all(self, skip, limit):
         keys, data = self.model.parsed_data(skip, limit)
 
-        cols = tuple(keys)
+        cols = [ {"text": f"{key}"} for key in keys ]
         # get data row by row
         rows = []
-        while data and(row := data.pop()):
-            values = [ row[key] if key == "_id" else
-                       row[key] if not row[key] else len(row[key]) for key in keys ]
+        while data and (row := data.pop()):
+            values = [
+                    row[key] if key == "_id" else
+                    '-'      if not row[key] else
+                    self._lines_str(row[key])
+                    for key in keys ]
             rows.append(tuple(values))
         
         return cols, rows
@@ -97,6 +100,10 @@ class DatabaseController:
     def create_diff_html(self, lines_a: list[str], lines_b: list[str]) -> None:
         diff_html = difflib.HtmlDiff().make_file(lines_a, lines_b)
         with open('diff.html', 'w') as f: f.write(diff_html)
+    
+    
+    def _lines_str(self, lines: str) -> str:
+        return f"{len(lines.splitlines())} lines"
 
 
 class SettingsController:
