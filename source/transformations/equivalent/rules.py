@@ -75,13 +75,13 @@ class ForRuleMaker:
         return ForRule2\
         (
             Patterns.assign_empty_list,
-            Patterns.appends_to_list,
+            Patterns.adds_to_list,
             Changers.for_to_list_comp
         )
 
 
 class ForRule(Rule):
-    """Reduces a "sum based" for loop (Pattern) to a comprehensions (Result).
+    """Reduces a "sum based" for loop to a comprehensions.
     """
 
     def match(self, node: AST) -> bool:

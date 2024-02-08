@@ -79,11 +79,18 @@ class DiffView(ttk.Frame):
         self.scrollbar = ttk.Scrollbar(self)
         self.scrollbar.config(command=self.scroll_command)
         self.text_original.textbox['yscrollcommand'] = self.scrollbar.set
+        self.text_original.textbox.bind("<Button-4>", self.on_mw_scroll)
+        self.text_original.textbox.bind("<Button-5>", self.on_mw_scroll)
         self.text_modified.textbox['yscrollcommand'] = self.scrollbar.set
+        self.text_modified.textbox.bind("<Button-4>", self.on_mw_scroll)
+        self.text_modified.textbox.bind("<Button-5>", self.on_mw_scroll)
         self.text_original.pack(fill="both", side="left", expand=True)
         self.text_modified.pack(fill="both", side="left", expand=True)
         self.scrollbar.pack(fill="y", side="right")
-        
+
+    def on_mw_scroll(self, event = None):
+        return 'break'
+
     def scroll_command(self, *args):
         self.text_original.textbox.yview(*args)
         self.text_modified.textbox.yview(*args)
@@ -184,30 +191,36 @@ class RefactorTab(View):
         self.columnconfigure(2, weight=1)
         self.columnconfigure(3, weight=1)
         # source widgets
-        self.source_text = SourceText(self)
-        self.source_tree = ASTView(self, "source")
+        self.source_text_frame = ttk.Labelframe(self, text="Source Code")
+        self.source_text = SourceText(self.source_text_frame)
+        self.source_text.pack(fill="both", expand=True, padx=3, pady=3)
+        self.source_tree_frame = ttk.Labelframe(self, text="Source AST")
+        self.source_tree = ASTView(self.source_tree_frame, "source")
+        self.source_tree.pack(fill="both", expand=True, padx=3, pady=3)
         # result widgets
-        self.result_text = ResultText(self)
-        self.result_tree = ASTView(self, "result")
+        self.result_text_frame = ttk.Labelframe(self, text="Transformed Code")
+        self.result_text = ResultText(self.result_text_frame)
+        self.result_text.pack(fill="both", expand=True, padx=3, pady=3)
+        self.result_tree_frame = ttk.Labelframe(self, text="Transformed AST")
+        self.result_tree = ASTView(self.result_tree_frame, "result")
+        self.result_tree.pack(fill="both", expand=True, padx=3, pady=3)
         # grid
-        self.source_text.grid(row=0, column=0, columnspan=2, sticky="nsew")
-        self.source_tree.grid(row=1, column=0, columnspan=2, sticky="nsew")
-        self.result_text.grid(row=0, column=2, columnspan=2, sticky="nsew")
-        self.result_tree.grid(row=1, column=2, columnspan=2, sticky="nsew")
-        # show source ast button
-        ttk.Button(self, text="Show Source AST", width=20,
-            command=lambda:self.controller.ast_show_source()
-        ).grid(row=2, column=0, pady=10)
-        # parse source ast button
-        ttk.Button(self, text="Parse AST", width=20,
+        self.source_text_frame.grid(row=0, column=0, columnspan=2, sticky="nsew", padx=3, pady=3)
+        self.result_text_frame.grid(row=0, column=2, columnspan=2, sticky="nsew", padx=3, pady=3)
+        self.source_tree_frame.grid(row=1, column=0, columnspan=2, sticky="nsew", padx=3, pady=3)
+        self.result_tree_frame.grid(row=1, column=2, columnspan=2, sticky="nsew", padx=3, pady=3)
+        
+        ttk.Button(self, width=20, text="Parse Source AST",
             command=lambda:self.controller.ast_parse(self.get_source_text())
+        ).grid(row=2, column=0, pady=10)
+        ttk.Button(self, width=20, text="Show Source AST",
+            command=lambda:self.controller.ast_show_source()
         ).grid(row=2, column=1, pady=10)
-        # transform button
-        ttk.Button(self, text="Transform", width=20,
+
+        ttk.Button(self, width=20, text="Transform AST",
             command=lambda:self.controller.ast_transform()
         ).grid(row=2, column=2, pady=10)
-        # show result ast button
-        ttk.Button(self, text="Show Result AST", width=20,
+        ttk.Button(self, width=20, text="Show Transformed AST",
             command=lambda:self.controller.ast_show_result()
         ).grid(row=2, column=3, pady=10)
         # add to observers
@@ -246,28 +259,34 @@ class DatabaseTab(View):
         # page size for pagination
         self.page_size = 25
         
-        self.label = ttk.Label(self, text='Documents: None')
-        self.label.pack(side="top", fill="y", expand=False, padx=5, pady=5)
-        
-        if not (count := self.controller.document_count()): return
+        if not (count := self.controller.document_count()):
+            self.label = ttk.Label(self, text=f'Documents: {count}')
+            self.label.pack(side="top", fill="y", expand=False)
+            return
         self.count = count
-        self.update_label()
         
         # fetch data
-        cols, rows = self.controller.find_all(skip=0, limit=0)
-        self._init_table(data=(cols,rows))
-        self.diff_view = DiffView(self)
-        self.diff_view.pack(fill="both", expand=True)
+        cols, rows = self.controller.find_all(skip=0, limit=0)  # NOTE: this may be slow when scaling up
+        self.diff_view_frame = ttk.Labelframe(self, text="Diff View")
+        self.diff_view_frame.pack(fill="both", expand=True, padx=3, pady=3)
+        self.diff_view = DiffView(self.diff_view_frame)
+        self.diff_view.pack(fill="both", expand=True, padx=3, pady=3)
         
         # diff form widgets
         self.diff_form = ttk.Frame(self)
         self.diff_form.pack(fill="x")
-        self.combo_select = ttk.Combobox(self.diff_form, width=25,)
+        self.combo_select = ttk.Combobox(self.diff_form, width=25)
         self.combo_select["state"] = "readonly"
-        self.combo_select.grid(row=0, column=0, pady=10, padx=10)
-        self.button_show = ttk.Button(self.diff_form, text="Show Diff", command=self.on_item_select)
-        self.button_show.grid(row=0, column=1, pady=10)
-        self._init_combo(cols)  # used to init the combo select values 
+        self.combo_select.grid(row=0, column=0, pady=10, padx=5)
+        self.button_show = ttk.Button(self.diff_form, width=15, text="Show Diff",
+                                      command=self.on_item_select)
+        self.button_show.grid(row=0, column=1, pady=10, padx=5)
+        self.button_html = ttk.Button(self.diff_form, width=15, text="Show Diff HTML",
+                                      command=self.on_html_create)
+        self.button_html.grid(row=0, column=2, pady=10, padx=5)
+        self._init_combo(cols)  # used to init the combo select values
+        # table view
+        self._init_table(data=(cols,rows))  # used to init and display the table view of the data
 
 
     def _init_table(self, data: tuple[list, list[tuple]]):
@@ -281,7 +300,8 @@ class DatabaseTab(View):
             paginated=True, pagesize=self.page_size
         )
         self.table.view.bind("<<TreeviewSelect>>", self.on_item_select)
-        self.table.pack(fill="both", expand=True)
+        self.table.pack(fill="both", expand=True, padx=5)
+        self.table.goto_first_page()
 
 
     def _init_combo(self, cols):
@@ -291,37 +311,52 @@ class DatabaseTab(View):
         self.combo_select.set(self.combo_select["values"][0])
 
 
-    def on_item_select(self, event = None):
+    def get_selected_row(self):
         selected = self.table.view.selection()
         if len(selected) - 1:
             print("Can't select more than one item.")
             return
         row = self.table.view.item(selected)["values"]
-        if not row: return
-        id = row[0]
-        if record := self.controller.find_one(id):
-            self.update_diff_view(record, self.combo_select.get())
+        return row if row else None
 
 
-    def update_label(self) -> str:
-        self.label["text"] = f"Documents: {self.count}"
+    def get_selected_row_id(self):
+        match row := self.get_selected_row():
+            case [str(), *_]: return row[0]
 
 
-    def update_diff_view(self, record : dict, key: str):
-        if ("_source" not in record or 
-                  key not in record or
-                  key in {"_id", "_source"}):
-            return
-        source : str = record["_source"]
-        result : str = record[key]
+    def on_item_select(self, event = None):
+        id = self.get_selected_row_id()
+        if not id: return
+        if doc := self.controller.find_by_id(id):
+            self.update_diff_view(doc, self.combo_select.get())
 
-        diff = self.controller.get_diff(
-            s := source.splitlines(),
-            r := result.splitlines()
-        )
+
+    def on_html_create(self, event = None):
+        id = self.get_selected_row_id()
+        if not id: return
+        if doc := self.controller.find_by_id(id):
+            self.create_diff_html(doc, self.combo_select.get())
+
+
+    def update_diff_view(self, doc: dict, key: str):
+        temp = self.controller.get_result(doc, key)
+        if not temp: return
+        s, r = temp
+        diff = self.controller.create_diff(
+            s.splitlines(),
+            r.splitlines())
         self.diff_view.set_diff(diff)
-        # maybe do this with a separate button
-        self.controller.create_diff_html(s, r)
+
+
+    def create_diff_html(self, doc: dict, key: str):
+        temp = self.controller.get_result(doc, key)
+        if not temp: return
+        s, r = temp
+        if not s or not r: return
+        self.controller.create_diff_html(
+            s.splitlines(), 
+            r.splitlines())
 
 
 class SettingsTab(View):

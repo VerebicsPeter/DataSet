@@ -1,6 +1,6 @@
-from typing import Protocol
 import logging
 import difflib
+import webbrowser  # for opening html diff
 from tkinter import messagebox
 from .appstate import AppState
 from .client import Client
@@ -67,7 +67,7 @@ class DatabaseController:
         return self.model.get_document_count()
     
     
-    def find_one(self, id: str):
+    def find_by_id(self, id: str):
         record = self.model.find_one(id)
         if not record:
             messagebox.showinfo(title="Show Diff", message=f"No record with id: {id}.")
@@ -76,7 +76,7 @@ class DatabaseController:
 
 
     def find_all(self, skip, limit):
-        keys, data = self.model.parsed_data(skip, limit)
+        keys, data = self.model.table_data(skip, limit)
 
         cols = [ {"text": f"{key}"} for key in keys ]
         # get data row by row
@@ -90,9 +90,23 @@ class DatabaseController:
             rows.append(tuple(values))
         
         return cols, rows
+    
+    
+    def get_result(self, doc: dict[str, str], key: str):
+        # validate doc
+        if not doc.get("_id"):
+            return
+        if not doc.get("_source"):
+            return
+        # validate key
+        if key in {"_id", "_source"}:
+            return
+        if key not in doc:
+            return
+        return doc["_source"], doc[key]
 
 
-    def get_diff(self, lines_a: list[str], lines_b: list[str]) -> list[str]:
+    def create_diff(self, lines_a: list[str], lines_b: list[str]) -> list[str]:
         diff = difflib.Differ().compare(lines_a, lines_b)
         return list(diff)
 
@@ -100,6 +114,7 @@ class DatabaseController:
     def create_diff_html(self, lines_a: list[str], lines_b: list[str]) -> None:
         diff_html = difflib.HtmlDiff().make_file(lines_a, lines_b)
         with open('diff.html', 'w') as f: f.write(diff_html)
+        webbrowser.open_new_tab("diff.html")
     
     
     def _lines_str(self, lines: str) -> str:

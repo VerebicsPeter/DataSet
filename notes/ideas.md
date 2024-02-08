@@ -31,6 +31,7 @@
 
 - [ ] `try: open(...) excep: ...` to `with open(...)`
 - [ ] code obfuscation
+- [ ] shuffle kwargs
 
 ## Implementation
 

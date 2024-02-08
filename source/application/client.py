@@ -14,7 +14,9 @@ def catch_all(func):
     return wrapper
 
 
-def parsed_data(doc, keys): return { key: doc[key] if key in doc else None for key in keys }
+def row_data(doc, keys):
+    return { key: doc[key] if key in doc else None 
+         for key in keys }
 
 
 class Client(MonoState, Observable):
@@ -29,7 +31,7 @@ class Client(MonoState, Observable):
         # NOTE: Beware of name mangling when using brog attributes like this (__ mangles the name)
         if not hasattr(self, "client"    ): self.client     = None
         if not hasattr(self, "equivalent"): self.equivalent = None
-        if not hasattr(self, "observers"): self.observers : list[Observer] = []
+        if not hasattr(self, "observers" ): self.observers : list[Observer] = []
 
 
     def attach(self, observer):
@@ -43,7 +45,7 @@ class Client(MonoState, Observable):
 
     @catch_all
     def set_client(self, client: MongoClient):
-        self.client     = client
+        self.client = client
         self.equivalent = client.refactoring.equivalent
         self.notify("client_change")
 
@@ -68,7 +70,7 @@ class Client(MonoState, Observable):
         return self.equivalent.find({}).skip(skip).limit(limit)
     
     @catch_all
-    def parsed_data(self, skip = 0, limit = 30):
+    def table_data(self, skip = 0, limit = 0):
         if self.client is None: return
         
         docs = list(self.find_all(skip, limit))
@@ -78,4 +80,4 @@ class Client(MonoState, Observable):
         keys = list(key_set)
         keys.sort()
         
-        return keys, [ parsed_data(doc, keys) for doc in docs ]
+        return keys, [ row_data(doc, keys) for doc in docs ]
