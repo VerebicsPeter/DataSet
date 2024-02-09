@@ -1,16 +1,10 @@
 # Ideas
 
-## To-Do
-
-- [ ] Read about contrastive learning and contra code
-
 ## Equivalence
 
 ### Arithmetic
 
-- [ ] `+` and `*` are commutative
-- [ ] `+` and `*` are associative
-- [ ] `*` is distributive on `+` and `-`
+- [ ] `+` and `*` are commutative (for number constants)
 
 ### Logic
 
@@ -33,7 +27,7 @@
 - [ ] code obfuscation
 - [ ] shuffle kwargs
 
-## Implementation
+## Implementation ideas
 
 - Create smaller 'sub-patterns' for more complex transformations (i.e.: for transformations)
 - Make rules "bidirectional"

@@ -1,6 +1,6 @@
 import ast
 
-from ast import AST, For, NodeVisitor, NodeTransformer, fix_missing_locations
+from ast import AST, NodeVisitor, NodeTransformer, fix_missing_locations
 
 from functools import wraps
 

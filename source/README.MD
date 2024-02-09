@@ -16,6 +16,6 @@ Refactorings can be added inside the  `persistor_run.py` script using `store`.
 
 - `persistor_init.py` - **copy** all **.py** scripts from `data/repos` to `data/scripts`.
 
-### Persistance
+### Persistence
 
 - `persistor_run.py` - **save** all **.py** scripts to mongodb database.

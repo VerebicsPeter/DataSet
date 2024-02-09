@@ -1,14 +1,10 @@
 import ast
 
-from ast import parse, unparse, dump, iter_child_nodes, AST
+from ast import parse, unparse, dump, AST, NodeVisitor, NodeTransformer
 
 import copy
 
 from typing import Protocol
-
-from transformations.transformation import (
-    AST, NodeVisitor
-)
 
 from transformations.equivalent.visitors import (
     TFor, TSimple, TFor2
